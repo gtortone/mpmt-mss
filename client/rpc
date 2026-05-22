@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+
+import httpx
+import typer
+import json
+from rich import print
+
+app = typer.Typer()
+
+DEFAULT_URL = "http://localhost:8000/rpc"
+
+def rpc_call(method: str, params: dict | list, url: str):
+    payload = {
+        "jsonrpc": "2.0",
+        "method": method,
+        "params": params,
+        "id": 1
+    }
+
+    r = httpx.post(url, json=payload)
+    data = r.json()
+
+    if "error" in data and data["error"]:
+        print(f"[red]RPC ERROR:[/red] {data['error']}")
+        raise typer.Exit(1)
+
+    return data.get("result")
+
+@app.command()
+def call(
+    method: str,
+    args: list[str] = typer.Argument(None),
+    url: str = DEFAULT_URL
+):
+    """
+    rpc call sensor.set_threshold 11
+    """
+
+    params = {}
+
+    # supporto semplice positional
+    if args:
+        # trasformiamo args in dict generico p0,p1...
+        params = {f"arg{i}": v for i, v in enumerate(args)}
+
+    result = rpc_call(method, params, url)
+
+    print(result)
+
+@app.command()
+def run(
+    method: str,
+    args: list[str] = typer.Argument(None),
+    url: str = DEFAULT_URL
+):
+    """
+    rpc run sensor.humidity
+    rpc run sensor.set_threshold 11
+    """
+
+    params = args or []
+    result = rpc_call(method, params, url)
+    print(result)
+
+
+@app.command()
+def schema(url: str = DEFAULT_URL):
+    r = httpx.get(url.replace("/rpc", "/rpc/schema"))
+    print(json.dumps(r.json(), indent=2))
+
+
+@app.command()
+def methods(url: str = DEFAULT_URL):
+    r = httpx.get(url.replace("/rpc", "/rpc/methods"))
+    print(json.dumps(r.json(), indent=2))
+
+if __name__ == "__main__":
+    app()
