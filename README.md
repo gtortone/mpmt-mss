@@ -1,2 +1,2 @@
 # mpmt-mss
-mPMT Slowcontrokl Service
+mPMT Slowcontrol Service
