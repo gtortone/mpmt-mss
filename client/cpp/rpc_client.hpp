@@ -107,12 +107,28 @@ public:
 
 };
 
+class Hv {
+private:
+    RPCClientBase* client;
+
+public:
+    Hv(RPCClientBase* c) : client(c) {}
+
+    float getVoltage(int slave) {
+        json params = json{{"slave", slave}};
+        json res = client->call("hv.core.getVoltage", params);
+        if (res.is_number()) return res.get<float>();
+        return 0.0;
+    }
+};
+
 class RPCClient {
 public:
     RPCClientBase base;
     Sensor sensor;
+    Hv hv;
 
     RPCClient(string url)
         : base(url),
-          sensor(&base) {}
+          sensor(&base), hv(&base) {}
 };

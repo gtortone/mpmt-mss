@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 
-import asyncio
 from rpc_client import RPCClient
 
-async def main():
-    client = RPCClient("http://localhost:8000/rpc")
+client = RPCClient("http://localhost:8000/rpc")
 
-    value = await client.sensor.humidity()
-    print("humidity:", value)
+#value = client.Sensor.humidity()
+#print("humidity:", value)
 
-    await client.sensor.set_threshold(11)
+for i in range(1000):
+   value = client.HvCore.getVoltage(1)
+   print("CH1 getVoltage:" , value)
+   value = client.HvCore.getCurrent(1)
+   print("CH1 getCurrent:" , value)
+   value = client.HvCore.getTemperature(1)
+   print("CH1 getTemperature:" , value)
 
-if __name__ == "__main__":
-    asyncio.run(main())

@@ -72,7 +72,7 @@ class RPCRuntime:
             for name, p in sig.parameters.items():
                 params.append({
                     "name": name,
-                    "type": str(p.annotation) if p.annotation != inspect._empty else "any"
+                    "type": str(p.annotation).split("|")[0].strip() if p.annotation != inspect._empty else "any"
                 })
 
             schema[full_name] = {
