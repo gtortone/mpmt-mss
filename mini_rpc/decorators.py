@@ -10,3 +10,7 @@ def rpc_method(func):
     # method wrapper
     func._rpc_exposed = True
     return func
+
+def localhost_only(func):
+    func._localhost_only = True
+    return func

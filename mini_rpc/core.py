@@ -8,7 +8,6 @@ class RPCError(Exception):
         self.code = code
         self.message = message
 
-
 class RPCRuntime:
 
     def __init__(self):
