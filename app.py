@@ -9,9 +9,12 @@ from argparse import Namespace
 
 runtime = RPCRuntime()
 
-hv = HVModbus(Namespace(mode='rtu', port='/dev/ttyPS1'))
+# core objects
+hv = HVModbus({"mode": "rtu", "port": "/dev/ttyPS1"})
 fpga = FPGA('/dev/uio0')
 hk = HouseKeeping()
+
+# composite objects
 hvcomp = HVComposite(hv)
 
 # core layer
