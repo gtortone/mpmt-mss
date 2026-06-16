@@ -6,6 +6,12 @@ def create_app(runtime: RPCRuntime):
 
     app = FastAPI(title="mPMT RPC Framework")
 
+    @app.on_event("shutdown")
+    def shutdown():
+        for name,instance in runtime.services.items():
+            if hasattr(instance, "close") and callable(getattr(instance, "close")):
+                instance.close()
+
     @app.post("/rpc")
     async def rpc(req: JSONRPCRequest):
 
