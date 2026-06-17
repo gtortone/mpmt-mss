@@ -1,12 +1,6 @@
 import inspect
 from typing import Any, Callable, Dict
-
-
-class RPCError(Exception):
-
-    def __init__(self, code: int, message: str):
-        self.code = code
-        self.message = message
+from mini_rpc.types import *
 
 class RPCRuntime:
 
@@ -30,20 +24,16 @@ class RPCRuntime:
     async def call(self, method: str, params: Any):
 
         if method not in self.methods:
-            raise RPCError(-32601, "Method not found")
+            raise MethodNotFoundError(f"method '{method}' not found")
 
         func = self.methods[method]
 
-        try:
-            # async function
-            if inspect.iscoroutinefunction(func):
-                return await self._invoke_async(func, params)
+        # async function
+        if inspect.iscoroutinefunction(func):
+            return await self._invoke_async(func, params)
 
-            # sync function
-            return self._invoke_sync(func, params)
-
-        except Exception as e:
-            raise RPCError(-32603, str(e))
+        # sync function
+        return self._invoke_sync(func, params)
 
     async def _invoke_async(self, func, params):
         if isinstance(params, dict):
