@@ -1,5 +1,5 @@
-from feb.devices import DeviceType, DeviceConfig, DeviceChannel
-from runcontrol.fpga import FPGA
+from mpmt_mss.feb.devices import DeviceType, DeviceConfig, DeviceChannel
+from mpmt_mss.runcontrol.fpga import FPGA
 from enum import Enum
 from typing import Union
 

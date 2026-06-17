@@ -1,8 +1,8 @@
 import json
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from mini_rpc.types import *
-from mini_rpc.core import RPCRuntime
+from mpmt_mss.mini_rpc.types import *
+from mpmt_mss.mini_rpc.core import RPCRuntime
 
 def make_error_response(code: int, message: str, req_id: Optional[Union[str, int]] = None, data: Any = None) -> dict:
     response = {

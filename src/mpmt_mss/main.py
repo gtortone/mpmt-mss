@@ -1,7 +1,7 @@
 
-from mini_rpc import RPCRuntime, create_app
-from runcontrol.fpga import FPGA
-from feb import FEBManager, ModbusConfig
+from mpmt_mss.mini_rpc import RPCRuntime, create_app
+from mpmt_mss.runcontrol.fpga import FPGA
+from mpmt_mss.feb import FEBManager, ModbusConfig
 
 febmgr = FEBManager(ModbusConfig(mode="rtu", port="/dev/ttyPS1"))
 
@@ -16,3 +16,6 @@ runtime.register_service("febmgr", febmgr)
 
 app = create_app(runtime)
 
+def start():
+    import uvicorn
+    uvicorn.run("mpmt_mss.main:app", host="0.0.0.0", port=8000)

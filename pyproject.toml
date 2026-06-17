@@ -11,3 +11,14 @@ dependencies = [
     "pyserial>=3.5",
     "uvicorn>=0.49.0",
 ]
+
+[project.scripts]
+mpmt-mss = "mpmt_mss.main:start"      # uv run mpmt-mss
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mpmt_mss"]
+

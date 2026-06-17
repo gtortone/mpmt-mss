@@ -1,4 +1,4 @@
-from feb.devices import DeviceType, DeviceConfig, DeviceChannel
+from mpmt_mss.feb.devices import DeviceType, DeviceConfig, DeviceChannel
 from enum import Enum, IntFlag
 
 class PMTChannel(DeviceChannel):

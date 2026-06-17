@@ -1,5 +1,5 @@
 
-from feb.devices import DeviceChannel
+from mpmt_mss.feb.devices import DeviceChannel
 from enum import Enum
 
 # FEBChannel contains attached DeviceChannel

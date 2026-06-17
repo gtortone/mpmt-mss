@@ -1,6 +1,6 @@
 import inspect
 from typing import Any, Callable, Dict
-from mini_rpc.types import *
+from mpmt_mss.mini_rpc.types import *
 
 class RPCRuntime:
 

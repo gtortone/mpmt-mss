@@ -1,13 +1,13 @@
 import inspect
 import threading
 import time
-from feb.feb_channel import FEBChannel
-from feb.modbus_manager import ModbusManager, ModbusConfig
-from feb.devices import DeviceType, DeviceConfig
-from feb.pmtchannel import PMTChannel
-from feb.ledchannel import LEDChannel
-from runcontrol.fpga import FPGA
-from mini_rpc import rpc_service, rpc_method
+from mpmt_mss.feb.feb_channel import FEBChannel
+from mpmt_mss.feb.modbus_manager import ModbusManager, ModbusConfig
+from mpmt_mss.feb.devices import DeviceType, DeviceConfig
+from mpmt_mss.feb.pmtchannel import PMTChannel
+from mpmt_mss.feb.ledchannel import LEDChannel
+from mpmt_mss.runcontrol.fpga import FPGA
+from mpmt_mss.mini_rpc import rpc_service, rpc_method
 
 @rpc_service()
 class FEBManager:
