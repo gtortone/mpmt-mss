@@ -1,3 +1,5 @@
+from struct import pack, unpack
+from math import floor
 from mpmt_mss.feb.devices import DeviceType, DeviceConfig, DeviceChannel
 from enum import Enum, IntFlag
 
@@ -35,7 +37,7 @@ class PMTChannel(DeviceChannel):
 
     def probe(self):
         try:
-            self.getStatus()
+            self.getPMTStatus()
         except Exception as e:
             self.online = False
         else:
@@ -56,121 +58,121 @@ class PMTChannel(DeviceChannel):
         return round(q + i, 1)
 
     @DeviceChannel.track_connection
-    def getStatus(self) -> dict:
+    def getPMTStatus(self) -> dict:
         rr = self.modbus.read_holding_registers(address=6, count=1, slave=self.address)
         return {"value": rr.registers[0], "string": self.STATUS_MAP.get(rr.registers[0], "undef")}
 
     @DeviceChannel.track_connection
-    def getVoltage(self) -> float:
+    def getPMTVoltage(self) -> float:
         rr = self.modbus.read_holding_registers(address=0x2A, count=2, slave=self.address)
         rr.registers.reverse()
         return self.modbus.convert_from_registers(rr.registers, data_type=self.modbus.DATATYPE.INT32) / 1000
 
     @DeviceChannel.track_connection
-    def getVoltageSet(self) -> int:
+    def getPMTVoltageSet(self) -> int:
         rr = self.modbus.read_holding_registers(address=0x26, count=1, slave=self.address)
         return rr.registers[0]
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(25, 1500)
-    def setVoltageSet(self, value: int):
+    def setPMTVoltageSet(self, value: int):
         self.modbus.write_register(address=0x26, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
-    def getCurrent(self) -> float:
+    def getPMTCurrent(self) -> float:
         rr = self.modbus.read_holding_registers(address=0x28, count=2, slave=self.address)
         rr.registers.reverse()
         return self.modbus.convert_from_registers(rr.registers, data_type=self.modbus.DATATYPE.INT32) / 1000
 
     @DeviceChannel.track_connection
-    def getTemperature(self) -> float:
+    def getPMTTemperature(self) -> float:
         rr = self.modbus.read_holding_registers(address=0x7, count=1, slave=self.address)
         return self.convertTemperature(rr.registers[0])
 
     @DeviceChannel.track_connection
-    def getRateRampup(self) -> int:
+    def getPMTRateRampup(self) -> int:
         rr = self.modbus.read_holding_registers(address=0x23, count=2, slave=self.address)
         return rr.registers[0]   
 
     @DeviceChannel.track_connection
-    def getRateRampdown(self) -> int:
+    def getPMTRateRampdown(self) -> int:
         rr = self.modbus.read_holding_registers(address=0x23, count=2, slave=self.address)
         return rr.registers[1]   
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(1, 25)
-    def setRateRampup(self, value: int):
+    def setPMTRateRampup(self, value: int):
         self.modbus.write_register(address=0x23, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(1, 25)
-    def setRateRampdown(self, value: int):
+    def setPMTRateRampdown(self, value: int):
         self.modbus.write_register(address=0x24, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(1, 20)
-    def setLimitVoltage(self, value: int):
+    def setPMTLimitVoltage(self, value: int):
         self.modbus.write_register(address=0x27, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(1, 10)
-    def setLimitCurrent(self, value: int):
+    def setPMTLimitCurrent(self, value: int):
         self.modbus.write_register(address=0x25, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(20, 70)
-    def setLimitTemperature(self, value: int):
+    def setPMTLimitTemperature(self, value: int):
         self.modbus.write_register(address=0x2F, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(1, 1000)
-    def setLimitTriptime(self, value: int):
+    def setPMTLimitTriptime(self, value: int):
         self.modbus.write_register(address=0x22, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(0, 2500)
-    def setThreshold(self, value: float):
-        self.modbus.write_register(address=0x2D, value=math.floor(value), slave=self.address)
+    def setPMTThreshold(self, value: float):
+        self.modbus.write_register(address=0x2D, value=floor(value), slave=self.address)
         self.modbus.write_register(address=0x35, value=int(value * 10) % 10, slave=self.address)
 
     @DeviceChannel.track_connection
-    def getThreshold(self) -> float:
+    def getPMTThreshold(self) -> float:
         ri = self.modbus.read_holding_registers(address=0x2D, count=1, slave=self.address)
         rf = self.modbus.read_holding_registers(address=0x35, count=1, slave=self.address)
         return ri.registers[0] + rf.registers[0]/10
 
     @DeviceChannel.track_connection
-    def getAlarm(self) -> dict:
+    def getPMTAlarm(self) -> dict:
         rr = self.modbus.read_holding_registers(address=0x2E, count=1, slave=self.address)
         return {"value": rr.registers[0], "string": self.alarm_string(rr.registers[0])}
 
     @DeviceChannel.track_connection
-    def getVref(self) -> float:
+    def getPMTVref(self) -> float:
         rr = self.modbus.read_holding_registers(address=0x2C, count=1, slave=self.address)
         return rr.registers[0]/10
 
     @DeviceChannel.track_connection
-    def powerOn(self):
+    def powerPMTOn(self):
         self.modbus.write_coil(address=1, value=True, slave=self.address)
 
     @DeviceChannel.track_connection
-    def powerOff(self):
+    def powerPMTOff(self):
         self.modbus.write_coil(address=1, value=False, slave=self.address)
 
     @DeviceChannel.track_connection
-    def reset(self):
+    def resetPMT(self):
         self.modbus.write_coil(address=2, value=True, slave=self.address)
 
     @DeviceChannel.track_connection
-    def getInfo(self) -> dict:
+    def getPMTInfo(self) -> dict:
         l = self.modbus.read_holding_registers(address=0x02, count=1, slave=self.address).registers
-        fwver = struct.pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
+        fwver = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x08, count=6, slave=self.address).registers
-        pmtsn = struct.pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
+        pmtsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x0E, count=6, slave=self.address).registers
-        hvsn = struct.pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
+        hvsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x14, count=6, slave=self.address).registers
-        febsn = struct.pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
+        febsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x04, count=2, slave=self.address).registers
         devid = (l[1] << 16) + l[0]
         return {"fwver": fwver, "pmtsn": pmtsn, "hvsn": hvsn, "febsn": febsn, "devid": str(devid)}
@@ -182,23 +184,19 @@ class PMTChannel(DeviceChannel):
           slave=self.address, no_response_expected=True)
 
     @DeviceChannel.track_connection
-    def setHVSerialNumber(self, sn: str):
+    def setPMTHVSerialNumber(self, sn: str):
         data = self.modbus.convert_to_registers(sn.ljust(12, '\0'), self.modbus.DATATYPE.STRING)
         self.modbus.write_registers(address=0x0E, values=data,
           slave=self.address, no_response_expected=True)
 
     @DeviceChannel.track_connection
-    def setFEBSerialNumber(self, sn: str):
+    def setPMTFEBSerialNumber(self, sn: str):
         data = self.modbus.convert_to_registers(sn.ljust(12, '\0'), self.modbus.DATATYPE.STRING)
         self.modbus.write_registers(address=0x14, values=data,
           slave=self.address, no_response_expected=True)
 
-    @DeviceChannel.validate_range(1, 20)
-    def setModbusAddress(self, addr: int):
-        self.modbus.write_register(address=0x00, value=addr, slave=self.address)
-
     @DeviceChannel.track_connection
-    def readMonRegisters(self) -> dict:
+    def readPMTMonRegisters(self) -> dict:
         monData = {}
         rr = self.modbus.read_holding_registers(address=0, count=54, slave=self.address)
 
@@ -233,7 +231,7 @@ class PMTChannel(DeviceChannel):
         return monData
 
     @DeviceChannel.track_connection
-    def readCalibRegisters(self) -> dict:
+    def readPMTCalibRegisters(self) -> dict:
         rr = self.modbus.read_holding_registers(address=0x30, count=5, slave=self.address)
         mlsb = rr.registers[0]
         mmsb = rr.registers[1]
@@ -242,11 +240,11 @@ class PMTChannel(DeviceChannel):
         calibt = rr.registers[4]
 
         calibm = ((mmsb << 16) + mlsb)
-        calibm = struct.unpack('l', struct.pack('L', calibm & 0xffffffff))[0]
+        calibm = unpack('l', pack('L', calibm & 0xffffffff))[0]
         calibm = calibm / 10000
 
         calibq = ((qmsb << 16) + qlsb)
-        calibq = struct.unpack('l', struct.pack('L', calibq & 0xffffffff))[0]
+        calibq = unpack('l', pack('L', calibq & 0xffffffff))[0]
         calibq = calibq / 10000
 
         calibt = round(calibt / 1.6890722, 2)
@@ -254,21 +252,21 @@ class PMTChannel(DeviceChannel):
         return {"slope": calibm, "offset": calibq, "discr": calibt}
 
     @DeviceChannel.track_connection
-    def writeCalibSlope(self, slope: float):
+    def writePMTCalibSlope(self, slope: float):
         slope = int(slope * 10000)
         lsb = (slope & 0xFFFF)
         msb = (slope >> 16) & 0xFFFF
         self.modbus.write_registers(address=0x30, values=[lsb, msb], slave=self.address, no_response_expected=True)
 
     @DeviceChannel.track_connection
-    def writeCalibOffset(self, offset: float):
+    def writePMTCalibOffset(self, offset: float):
         offset = int(offset * 10000)
         lsb = (offset & 0xFFFF)
         msb = (offset >> 16) & 0xFFFF
         self.modbus.write_registers(address=0x32, values=[lsb, msb], slave=self.address, no_response_expected=True)
 
     @DeviceChannel.track_connection
-    def writeCalibDiscr(self, discr: float):
+    def writePMTCalibDiscr(self, discr: float):
         discr = int(discr * 1.6890722)
         self.modbus.write_register(address=0x34, value=discr, slave=self.address)
 

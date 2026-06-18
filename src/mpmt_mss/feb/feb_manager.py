@@ -9,6 +9,62 @@ from mpmt_mss.feb.ledchannel import LEDChannel
 from mpmt_mss.runcontrol.fpga import FPGA
 from mpmt_mss.rpc import rpc_service, rpc_method
 
+FEB_RPC_METHODS: list[str] = [
+
+    # PMT
+    "getPMTStatus",
+    "getPMTVoltage",
+    "getPMTVoltageSet",
+    "setPMTVoltageSet",
+    "getPMTCurrent",
+    "getPMTTemperature",
+    "getPMTRateRampup",
+    "getPMTRateRampdown",
+    "setPMTRateRampup",
+    "setPMTRateRampdown",
+    "setPMTLimitVoltage",
+    "setPMTLimitCurrent",
+    "setPMTLimitTemperature",
+    "setPMTLimitTriptime",
+    "setPMTThreshold",
+    "getPMTThreshold",
+    "getPMTAlarm",
+    "getPMTVref",
+    "powerPMTOn",
+    "powerPMTOff",
+    "resetPMT",
+    "getPMTInfo",
+    "setPMTSerialNumber",
+    "setPMTHVSerialNumber",
+    "setPMTFEBSerialNumber",
+    "setPMTModbusAddress",
+    "readPMTMonRegisters",
+    "readPMTCalibRegisters",
+    "writePMTCalibSlope",
+    "writePMTCalibOffset",
+    "writePMTCalibDiscr",
+
+    # LED
+    "getLEDStatus",
+    "powerLEDOn",    
+    "powerLEDOff",    
+    "getLEDInfo",
+    "setLEDTrigger",
+    "getLEDTriggerStatus",
+    "setLEDBias",
+    "getLEDBiasStatus",
+    "setLEDBiasVoltage",
+    "getLEDBiasVoltage",
+    "readLEDBiasVoltage",
+    "getLEDChannels",
+    "setLEDChannels",
+    "setLEDTriggerSource",
+    "getLEDTriggerSource",
+    "getLEDCurrent",
+    "readLEDMonRegisters",
+    "setLEDModbusAddress",
+]
+
 @rpc_service()
 class FEBManager:
     def __init__(self, cfg: ModbusConfig, maxChannels=19, config_from_fpga=True):
@@ -18,6 +74,9 @@ class FEBManager:
 
         # channels are labeled from J1 to J19 (1...19)
         self._channels = [ FEBChannel(i) for i in range(maxChannels+1) ]
+
+        self._rpc_methods: list[str] = []
+        self._generate_routed_methods()        
 
         # register 103 bit (x) is '1' for PMT channel, '0' for LED channel
         if config_from_fpga:
@@ -31,6 +90,37 @@ class FEBManager:
         self._stop_event = threading.Event()
         self._thread = threading.Thread(target=self.probe_task)
         self._thread.start()
+
+    def _generate_routed_methods(self) -> None:
+        for name in FEB_RPC_METHODS:
+
+            def _make_routed(method_name: str):
+                def _routed(self, channel: int, *args, **kwargs):
+                    ch = self._channels[channel].device
+                    method = getattr(ch, method_name, None)
+                    if method is None or not callable(method):
+                        raise AttributeError(
+                            f"Channel {channel} ({type(ch).__name__}) "
+                            f"has no '{method_name}'"
+                        )
+                    return method(*args, **kwargs)
+
+                _routed.__name__ = method_name
+
+                return rpc_method(_routed)
+
+            setattr(FEBManager, name, _make_routed(name))
+            self._rpc_methods.append(name)
+
+    def get_rpc_interface(self) -> dict[str, inspect.Signature | None]:
+        result = {}
+        for name in self._rpc_methods:
+            method = getattr(self, name)
+            try:
+                result[name] = inspect.signature(method)
+            except (ValueError, TypeError):
+                result[name] = None
+        return result
 
     def close(self):
         if not self._stop_event.is_set():
@@ -125,10 +215,16 @@ class FEBManager:
         report = {}
         for ch in self.getOnlineChannels(dtype):
             try:
-                report[str(ch)] = { 
-                    "type": self.channel(ch).device.DEVICE_TYPE,
-                    **self.channel(ch).device.readMonRegisters()
-                }
+                if self.channel(ch).device.DEVICE_TYPE == "PMT":
+                   report[str(ch)] = { 
+                       "type": self.channel(ch).device.DEVICE_TYPE,
+                       **self.channel(ch).device.readPMTMonRegisters()
+                   }
+                elif self.channel(ch).device.DEVICE_TYPE == "LED":
+                   report[str(ch)] = { 
+                       "type": self.channel(ch).device.DEVICE_TYPE,
+                       **self.channel(ch).device.readLEDMonRegisters()
+                   }
             except Exception as e:
                 ...
         return report

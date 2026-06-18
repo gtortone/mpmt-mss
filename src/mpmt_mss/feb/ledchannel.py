@@ -35,54 +35,54 @@ class LEDChannel(DeviceChannel):
 
     def probe(self):
         try:
-            self.getInfo()
+            self.getLEDInfo()
         except Exception as e:
             self.online = False
         else:
             self.online = True
 
     @DeviceChannel.track_connection
-    def powerOn(self):
+    def powerLEDOn(self):
         self.modbus.write_coil(address=1, value=True, slave=self.address)
 
     @DeviceChannel.track_connection
-    def powerOff(self):
+    def powerLEDOff(self):
         self.modbus.write_coil(address=1, value=False, slave=self.address)
 
     @DeviceChannel.track_connection
-    def getStatus(self) -> dict:
+    def getLEDStatus(self) -> dict:
         rr = self.modbus.read_discrete_inputs(address=10001, count=1, slave=self.address)
         return {"value": int(rr.bits[0]), "string": self.STATUS_MAP.get(rr.bits[0], "undef")}
 
     @DeviceChannel.track_connection
-    def getInfo(self) -> dict:
+    def getLEDInfo(self) -> dict:
         rr = self.modbus.read_input_registers(address=30001, count=1, slave=self.address).registers
         fwver = f"{rr[0] >> 8}.{(rr[0] & 0xF0) >> 4}.{rr[0] & 0x0F}"
         return {"fwver": fwver}
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(0, 1)
-    def setTrigger(self, value: int):
+    def setLEDTrigger(self, value: int):
         self.modbus.write_coil(address=2, value=bool(value), slave=self.address)
 
     @DeviceChannel.track_connection
-    def getTriggerStatus(self):
+    def getLEDTriggerStatus(self):
         rr = self.modbus.read_coils(address=2, count=1, slave=self.address)
         return {"value": int(rr.bits[0]), "string": self.STATUS_MAP.get(rr.bits[0], "undef")}
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(0, 1)
-    def setBias(self, value: int):
+    def setLEDBias(self, value: int):
         self.modbus.write_coil(address=3, value=bool(value), slave=self.address)
 
     @DeviceChannel.track_connection
-    def getBiasStatus(self):
+    def getLEDBiasStatus(self):
         rr = self.modbus.read_coils(address=3, count=1, slave=self.address)
         return {"value": int(rr.bits[0]), "string": self.STATUS_MAP.get(rr.bits[0], "undef")}
 
     @DeviceChannel.track_connection
     @DeviceChannel.validate_range(2.02, 15.28)
-    def setBiasVoltage(self, value: float):
+    def setLEDBiasVoltage(self, value: float):
         dac_level = int(4711.9 - 307.97 * value)
         if dac_level > 4095:
             dac_level = 4095
@@ -96,7 +96,13 @@ class LEDChannel(DeviceChannel):
             self.fpga.writeRegister(self.REG_LED_BASE + self.channel, regval)
 
     @DeviceChannel.track_connection
-    def getBiasVoltage(self) -> float:
+    def getLEDBiasVoltage(self) -> float:
+        dac_level = self.modbus.read_holding_registers(address=40003, count=1, slave=self.address).registers[0]
+        value = (4711.9 - dac_level) / 307.97
+        return round(value, 2)
+        
+    @DeviceChannel.track_connection
+    def readLEDBiasVoltage(self) -> float:
         adc_level = self.modbus.read_holding_registers(address=40004, 
             count=1, slave=self.address).registers[0] & 0xFFF;
         level_in_volts = adc_level / 248.242
@@ -104,7 +110,7 @@ class LEDChannel(DeviceChannel):
 
     @DeviceChannel.track_connection
     # enable list of led channels (first channel is 1)
-    def setChannels(self, channels: list[int], append: bool = False):
+    def setLEDChannels(self, channels: list[int], append: bool = False):
         value = 0
         for ch in channels:
             value |= (1<<(ch-1)) 
@@ -122,7 +128,7 @@ class LEDChannel(DeviceChannel):
 
     @DeviceChannel.track_connection
     # return list of enabled led channels
-    def getChannels(self) -> list[int]:
+    def getLEDChannels(self) -> list[int]:
         output = []
         value = self.modbus.read_holding_registers(address=40002, count=1, slave=self.address).registers[0]
         for ch in range(0,7):
@@ -131,7 +137,7 @@ class LEDChannel(DeviceChannel):
         return output
 
     @DeviceChannel.track_connection
-    def setTriggerSource(self, source: Union[str, int]):
+    def setLEDTriggerSource(self, source: Union[str, int]):
         if isinstance(source, str):
             source = TriggerSource(source)
         elif isinstance(source, int):
@@ -139,33 +145,34 @@ class LEDChannel(DeviceChannel):
         self.modbus.write_register(address=40001, value=int(source), slave=self.address)
 
     @DeviceChannel.track_connection
-    def getTriggerSource(self) -> dict:
+    def getLEDTriggerSource(self) -> dict:
         value = self.modbus.read_holding_registers(address=40001,
             count=1, slave=self.address).registers[0]
         return {"value": value, "string": TriggerSource.from_int(value)} 
 
     @DeviceChannel.track_connection
-    def getCurrent(self):
+    def getLEDCurrent(self):
         adc_level = self.modbus.read_holding_registers(address=40005,
             count=1, slave=self.address).registers[0] & 0xFFF; 
         level_in_ma = adc_level / 248.242
         return round(level_in_ma, 2)
 
     @DeviceChannel.track_connection
-    def readMonRegisters(self) -> dict:
+    def readLEDMonRegisters(self) -> dict:
         monData = {}
     
-        monData['status'] = self.getStatus()
-        monData['bias'] = self.getBiasStatus()
-        monData['biasVoltage'] = self.getBiasVoltage()
-        monData['trigger'] = self.getTriggerStatus()
-        monData['triggerSource'] = self.getTriggerSource()
-        monData['current'] = self.getCurrent()
-        monData['channels'] = self.getChannels()
+        monData['status'] = self.getLEDStatus()
+        monData['bias'] = self.getLEDBiasStatus()
+        monData['biasVoltageSet'] = self.getLEDBiasVoltage()
+        monData['biasVoltage'] = self.readLEDBiasVoltage()
+        monData['trigger'] = self.getLEDTriggerStatus()
+        monData['triggerSource'] = self.getLEDTriggerSource()
+        monData['current'] = self.getLEDCurrent()
+        monData['channels'] = self.getLEDChannels()
         
         return monData
     
     @DeviceChannel.validate_range(20, 40)
-    def setModbusAddress(self, addr: int):
+    def setLEDModbusAddress(self, addr: int):
         self.modbus.write_register(address=0x40006, value=addr, slave=self.address)
 
