@@ -1,0 +1,141 @@
+@startuml classes_mpmt-mss
+left to right direction
+set namespaceSeparator none
+class "DeviceChannel" as mpmt_mss.feb.devices.DeviceChannel {
+  DEVICE_TYPE : NoneType
+  address : int
+  channel : int
+  modbus
+  online : bool
+  probe()
+  track_connection()
+  validate_range(max_value)
+}
+class "FEBChannel" as mpmt_mss.feb.feb_channel.FEBChannel {
+  channel : int
+  device : DeviceChannel
+  type
+  attach(device: DeviceChannel)
+  detach()
+  is_configured() -> bool
+}
+class "FEBManager" as mpmt_mss.feb.feb_manager.FEBManager {
+  fpga : FPGA
+  maxChannels : int
+  modbus
+  call(channel: int, method: str, params: dict)
+  channel(i: int) -> FEBChannel
+  clear()
+  close()
+  configure(dtype: DeviceType, channel: int, address: int)
+  disableChannel(channel: int)
+  disableChannels(channels: list[int])
+  disableChannelsByMask(mask: int)
+  enableChannel(channel: int)
+  enableChannels(channels: list[int])
+  enableChannelsByMask(mask: int)
+  getDefinedChannels(dtype: DeviceType)
+  getOfflineChannels(dtype: DeviceType)
+  getOnlineChannels(dtype: DeviceType)
+  getStatus(dtype: DeviceType)
+  probe_task()
+  setup(cfg: list[DeviceConfig])
+}
+class "LEDChannel" as mpmt_mss.feb.ledchannel.LEDChannel {
+  DEVICE_TYPE : LED
+  REG_LED_BASE : int
+  STATUS_MAP : dict
+  fpga : FPGA
+  online : bool
+  getBiasStatus()
+  getBiasVoltage() -> float
+  getChannels() -> list[int]
+  getCurrent()
+  getInfo() -> dict
+  getStatus() -> dict
+  getTriggerSource() -> dict
+  getTriggerStatus()
+  powerOff()
+  powerOn()
+  probe()
+  readMonRegisters() -> dict
+  setBias(value: int)
+  setBiasVoltage(value: float)
+  setChannels(channels: list[int], append: bool)
+  setModbusAddress(addr: int)
+  setTrigger(value: int)
+  setTriggerSource(source: Union[str, int])
+}
+class "ModbusConfig" as mpmt_mss.feb.modbus_manager.ModbusConfig {
+  host : Optional[str]
+  mode : Literal['tcp', 'rtu']
+  port : Optional[str]
+}
+class "ModbusManager" as mpmt_mss.feb.modbus_manager.ModbusManager {
+  DATATYPE
+  client : NoneType
+  connected : bool
+  mutex : Lock
+  param
+  check_connect()
+  close()
+  convert_from_registers(registers: list, data_type)
+  convert_to_registers(data: str, data_type)
+  critical_section()
+  getInstance()
+  open(slave: int)
+  read_coils(address: int, count: int, slave: int)
+  read_discrete_inputs(address: int, count: int, slave: int)
+  read_holding_registers(address: int, count: int, slave: int)
+  read_input_registers(address: int, count: int, slave: int)
+  write_coil(address: int, value: int, slave: int)
+  write_register(address: int, value: int, slave: int)
+  write_registers(address: int, values: list, slave: int, no_response_expected)
+}
+class "PMTChannel" as mpmt_mss.feb.pmtchannel.PMTChannel {
+  ALARM_MAP : dict
+  DEVICE_TYPE : PMT
+  STATUS_MAP : dict
+  online : bool
+  alarm_string(alarm_code)
+  convertTemperature(value)
+  getAlarm() -> dict
+  getCurrent() -> float
+  getInfo() -> dict
+  getRateRampdown() -> int
+  getRateRampup() -> int
+  getStatus() -> dict
+  getTemperature() -> float
+  getThreshold() -> float
+  getVoltage() -> float
+  getVoltageSet() -> int
+  getVref() -> float
+  powerOff()
+  powerOn()
+  probe()
+  readCalibRegisters() -> dict
+  readMonRegisters() -> dict
+  reset()
+  setFEBSerialNumber(sn: str)
+  setHVSerialNumber(sn: str)
+  setLimitCurrent(value: int)
+  setLimitTemperature(value: int)
+  setLimitTriptime(value: int)
+  setLimitVoltage(value: int)
+  setModbusAddress(addr: int)
+  setPMTSerialNumber(sn: str)
+  setRateRampdown(value: int)
+  setRateRampup(value: int)
+  setThreshold(value: float)
+  setVoltageSet(value: int)
+  writeCalibDiscr(discr: float)
+  writeCalibOffset(offset: float)
+  writeCalibSlope(slope: float)
+}
+mpmt_mss.feb.ledchannel.LEDChannel --|> mpmt_mss.feb.devices.DeviceChannel
+mpmt_mss.feb.pmtchannel.PMTChannel --|> mpmt_mss.feb.devices.DeviceChannel
+mpmt_mss.feb.modbus_manager.ModbusManager --* mpmt_mss.feb.feb_manager.FEBManager
+mpmt_mss.feb.feb_channel.FEBChannel --* mpmt_mss.feb.feb_manager.FEBManager
+mpmt_mss.feb.devices.DeviceChannel --* mpmt_mss.feb.feb_channel.FEBChannel
+mpmt_mss.feb.modbus_manager.ModbusConfig --o mpmt_mss.feb.modbus_manager.ModbusManager
+@enduml
