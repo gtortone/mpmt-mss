@@ -7,7 +7,7 @@ from mpmt_mss.feb.devices import DeviceType, DeviceConfig
 from mpmt_mss.feb.pmtchannel import PMTChannel
 from mpmt_mss.feb.ledchannel import LEDChannel
 from mpmt_mss.runcontrol.fpga import FPGA
-from mpmt_mss.mini_rpc import rpc_service, rpc_method
+from mpmt_mss.rpc import rpc_service, rpc_method
 
 @rpc_service()
 class FEBManager:
@@ -41,7 +41,7 @@ class FEBManager:
 
     def probe_task(self):
         while True:
-            for ch in self.getChannels():
+            for ch in self.getDefinedChannels():
                 self.channel(ch).device.probe()
                 if self._stop_event.is_set():
                     return
@@ -88,7 +88,7 @@ class FEBManager:
 
     @rpc_method
     # returns board channel numbers filtered by DeviceType or all 
-    def getChannels(self, dtype: DeviceType = None):
+    def getDefinedChannels(self, dtype: DeviceType = None):
         if dtype is None:
             return [ch.channel for ch in self._channels if ch.is_configured()]
         else:
@@ -99,25 +99,25 @@ class FEBManager:
     # returns online board channel numbers filtered by DeviceType or all 
     def getOnlineChannels(self, dtype: DeviceType = None):
         online_channels = []
-        for ch in self.getChannels():
+        for ch in self.getDefinedChannels():
             if self.channel(ch).device.online:
                 online_channels.append(self.channel(ch).device.channel) 
         if dtype is None:
             return online_channels
         else:
-            return list(set(online_channels) & set(self.getChannels(dtype)))
+            return list(set(online_channels) & set(self.getDefinedChannels(dtype)))
 
     @rpc_method
     # returns offline board channel numbers filtered by DeviceType or all 
     def getOfflineChannels(self, dtype: DeviceType = None):
         offline_channels = []
-        for ch in self.getChannels():
+        for ch in self.getDefinedChannels():
             if not self.channel(ch).device.online:
                 offline_channels.append(self.channel(ch).device.channel) 
         if dtype is None:
             return offline_channels
         else:
-            return list(set(offline_channels) & set(self.getChannels(dtype)))
+            return list(set(offline_channels) & set(self.getDefinedChannels(dtype)))
 
     @rpc_method
     # return overall status for online channels

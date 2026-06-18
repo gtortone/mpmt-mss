@@ -1,5 +1,5 @@
 from mpmt_mss.feb import FEBManager, ModbusConfig
-from mpmt_mss.mini_rpc import RPCRuntime, create_app
+from mpmt_mss.rpc import RPCRuntime, create_app
 from mpmt_mss.runcontrol.fpga import FPGA
 
 __version__ = "0.1.0"

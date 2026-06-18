@@ -1,8 +1,8 @@
 import json
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-from mpmt_mss.mini_rpc.types import *
-from mpmt_mss.mini_rpc.core import RPCRuntime
+from mpmt_mss.rpc.types import *
+from mpmt_mss.rpc.core import RPCRuntime
 
 def make_error_response(code: int, message: str, req_id: Optional[Union[str, int]] = None, data: Any = None) -> dict:
     response = {
@@ -109,7 +109,7 @@ def create_app(runtime: RPCRuntime):
                 code=RPCErrorCode.INVALID_REQUEST,
                 message="Invalid request",
                 req_id=req_id,
-                data=str(exc),
+                data=f"{type(exc).__name__}: {str(exc).splitlines()[0]}"
             )
      
         is_notification = "id" not in raw

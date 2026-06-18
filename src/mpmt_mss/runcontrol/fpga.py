@@ -1,6 +1,6 @@
 import sys
 import mmap
-from mpmt_mss.mini_rpc import rpc_service, rpc_method
+from mpmt_mss.rpc import rpc_service, rpc_method
 
 @rpc_service()
 class FPGA:
