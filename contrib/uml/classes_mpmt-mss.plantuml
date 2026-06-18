@@ -1,4 +1,4 @@
-@startuml classes_mpmt-mss
+@startuml classes_feb
 left to right direction
 set namespaceSeparator none
 class "DeviceChannel" as mpmt_mss.feb.devices.DeviceChannel {
@@ -38,6 +38,7 @@ class "FEBManager" as mpmt_mss.feb.feb_manager.FEBManager {
   getOfflineChannels(dtype: DeviceType)
   getOnlineChannels(dtype: DeviceType)
   getStatus(dtype: DeviceType)
+  get_rpc_interface() -> dict[str, inspect.Signature | None]
   probe_task()
   setup(cfg: list[DeviceConfig])
 }
@@ -47,24 +48,25 @@ class "LEDChannel" as mpmt_mss.feb.ledchannel.LEDChannel {
   STATUS_MAP : dict
   fpga : FPGA
   online : bool
-  getBiasStatus()
-  getBiasVoltage() -> float
-  getChannels() -> list[int]
-  getCurrent()
-  getInfo() -> dict
-  getStatus() -> dict
-  getTriggerSource() -> dict
-  getTriggerStatus()
-  powerOff()
-  powerOn()
+  getLEDBiasStatus()
+  getLEDBiasVoltage() -> float
+  getLEDChannels() -> list[int]
+  getLEDCurrent()
+  getLEDInfo() -> dict
+  getLEDStatus() -> dict
+  getLEDTriggerSource() -> dict
+  getLEDTriggerStatus()
+  powerLEDOff()
+  powerLEDOn()
   probe()
-  readMonRegisters() -> dict
-  setBias(value: int)
-  setBiasVoltage(value: float)
-  setChannels(channels: list[int], append: bool)
-  setModbusAddress(addr: int)
-  setTrigger(value: int)
-  setTriggerSource(source: Union[str, int])
+  readLEDBiasVoltage() -> float
+  readLEDMonRegisters() -> dict
+  setLEDBias(value: int)
+  setLEDBiasVoltage(value: float)
+  setLEDChannels(channels: list[int], append: bool)
+  setLEDModbusAddress(addr: int)
+  setLEDTrigger(value: int)
+  setLEDTriggerSource(source: Union[str, int])
 }
 class "ModbusConfig" as mpmt_mss.feb.modbus_manager.ModbusConfig {
   host : Optional[str]
@@ -99,38 +101,37 @@ class "PMTChannel" as mpmt_mss.feb.pmtchannel.PMTChannel {
   online : bool
   alarm_string(alarm_code)
   convertTemperature(value)
-  getAlarm() -> dict
-  getCurrent() -> float
-  getInfo() -> dict
-  getRateRampdown() -> int
-  getRateRampup() -> int
-  getStatus() -> dict
-  getTemperature() -> float
-  getThreshold() -> float
-  getVoltage() -> float
-  getVoltageSet() -> int
-  getVref() -> float
-  powerOff()
-  powerOn()
+  getPMTAlarm() -> dict
+  getPMTCurrent() -> float
+  getPMTInfo() -> dict
+  getPMTRateRampdown() -> int
+  getPMTRateRampup() -> int
+  getPMTStatus() -> dict
+  getPMTTemperature() -> float
+  getPMTThreshold() -> float
+  getPMTVoltage() -> float
+  getPMTVoltageSet() -> int
+  getPMTVref() -> float
+  powerPMTOff()
+  powerPMTOn()
   probe()
-  readCalibRegisters() -> dict
-  readMonRegisters() -> dict
-  reset()
-  setFEBSerialNumber(sn: str)
-  setHVSerialNumber(sn: str)
-  setLimitCurrent(value: int)
-  setLimitTemperature(value: int)
-  setLimitTriptime(value: int)
-  setLimitVoltage(value: int)
-  setModbusAddress(addr: int)
+  readPMTCalibRegisters() -> dict
+  readPMTMonRegisters() -> dict
+  resetPMT()
+  setPMTFEBSerialNumber(sn: str)
+  setPMTHVSerialNumber(sn: str)
+  setPMTLimitCurrent(value: int)
+  setPMTLimitTemperature(value: int)
+  setPMTLimitTriptime(value: int)
+  setPMTLimitVoltage(value: int)
+  setPMTRateRampdown(value: int)
+  setPMTRateRampup(value: int)
   setPMTSerialNumber(sn: str)
-  setRateRampdown(value: int)
-  setRateRampup(value: int)
-  setThreshold(value: float)
-  setVoltageSet(value: int)
-  writeCalibDiscr(discr: float)
-  writeCalibOffset(offset: float)
-  writeCalibSlope(slope: float)
+  setPMTThreshold(value: float)
+  setPMTVoltageSet(value: int)
+  writePMTCalibDiscr(discr: float)
+  writePMTCalibOffset(offset: float)
+  writePMTCalibSlope(slope: float)
 }
 mpmt_mss.feb.ledchannel.LEDChannel --|> mpmt_mss.feb.devices.DeviceChannel
 mpmt_mss.feb.pmtchannel.PMTChannel --|> mpmt_mss.feb.devices.DeviceChannel
