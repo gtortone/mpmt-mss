@@ -178,6 +178,7 @@ FPGA_METHODS: list[tuple[str, list[ParamSpec], type]] = [
 ]
  
 SENSORS_METHODS: list[tuple[str, list[ParamSpec], type]] = [
+    ("read",                    [],                                                     dict),
 ]
  
 # One entry per JSON-RPC prefix. The dict key is both the wire-level prefix
