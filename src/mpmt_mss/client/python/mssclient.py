@@ -7,6 +7,7 @@ from typing import Any, List, Optional, Type, Union
 import requests
 
 from mpmt_mss.feb.devices import DeviceType
+from mpmt_mss.feb.ledchannel import TriggerSource
 
 # ---------------------------------------------------------------------------
 # Errors and exceptions
@@ -132,6 +133,24 @@ METHOD_SPEC: list[tuple[str, list[ParamSpec], type]] = [
     ("writePMTCalibSlope",      [("channel", int, True), ("value", float, True)],       type(None)), 
     ("writePMTCalibOffset",     [("channel", int, True), ("value", float, True)],       type(None)), 
     ("writePMTCalibDiscr",      [("channel", int, True), ("value", float, True)],       type(None)), 
+
+    ("getLEDStatus",            [("channel", int, True)],                               dict), 
+    ("getLEDInfo",              [("channel", int, True)],                               dict), 
+    ("getLEDTriggerStatus",     [("channel", int, True)],                               dict), 
+    ("getLEDBiasStatus",        [("channel", int, True)],                               dict), 
+    ("getLEDBiasVoltage",       [("channel", int, True)],                               float),
+    ("readLEDBiasVoltage",      [("channel", int, True)],                               float),
+    ("getLEDTriggerSource",     [("channel", int, True)],                               dict), 
+    ("getLEDCurrent",           [("channel", int, True)],                               float),
+    ("getLEDChannels",          [("channel", int, True)],                               List[int]),
+    ("readLEDMonRegisters",     [("channel", int, True)],                               dict),
+    ("powerLEDOn",              [("channel", int, True)],                               type(None)),
+    ("powerLEDOff",             [("channel", int, True)],                               type(None)),
+    ("setLEDTrigger",           [("channel", int, True), ("value", bool, True)],         type(None)),
+    ("setLEDTriggerSource",     [("channel", int, True), ("source", TriggerSource, True)],  type(None)),
+    ("setLEDBias",              [("channel", int, True), ("value", bool, True)],         type(None)),
+    ("setLEDBiasVoltage",       [("channel", int, True), ("value", float, True)],       type(None)),
+    ("setLEDChannels",          [("channel", int, True), ("channels", List[int], True), ("append", Optional[bool], False)], type(None)),
 ]
  
 # ---------------------------------------------------------------------------
