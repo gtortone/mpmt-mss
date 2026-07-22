@@ -81,6 +81,25 @@ class BaseRpcClient:
         self.close()
 
 
+class RpcNamespace:
+    """Lightweight wrapper representing one JSON-RPC method prefix
+    (e.g. 'febmgr', 'fpga', 'sensors'). Delegates transport to the
+    parent client so there is a single HTTP session / id counter shared
+    across all namespaces.
+    """
+ 
+    def __init__(self, client: "BaseRpcClient"):
+        self._client = client
+ 
+    def _call(self, method: str, params: Union[list, dict]) -> Any:
+        return self._client._call(method, params)
+ 
+    def notify(self, method: str, params: Union[list, dict]) -> None:
+        self._client.notify(method, params)
+
+
+ParamSpec = tuple  # (name: str, type: type, required: bool)
+
 # ---------------------------------------------------------------------------
 # Declarative spec of server-side methods
 #
@@ -91,7 +110,7 @@ class BaseRpcClient:
 #   param_type int              -> single integer
 #   param_type List[int]        -> list of integers
 # ---------------------------------------------------------------------------
-METHOD_SPEC: list[tuple[str, list[ParamSpec], type]] = [
+FEBMGR_METHODS: list[tuple[str, list[ParamSpec], type]] = [
     ("getDefinedChannels",      [("channel_type", Optional[DeviceType], False)],        List[int]),
     ("getOnlineChannels",       [("channel_type", Optional[DeviceType], False)],        List[int]),
     ("getOfflineChannels",      [("channel_type", Optional[DeviceType], False)],        List[int]),
@@ -152,7 +171,25 @@ METHOD_SPEC: list[tuple[str, list[ParamSpec], type]] = [
     ("setLEDBiasVoltage",       [("channel", int, True), ("value", float, True)],       type(None)),
     ("setLEDChannels",          [("channel", int, True), ("channels", List[int], True), ("append", Optional[bool], False)], type(None)),
 ]
+
+FPGA_METHODS: list[tuple[str, list[ParamSpec], type]] = [
+    ("readRegister",            [("address", int, True)],                               int),
+    ("writeRegister",           [("address", int, True), ("value", int, True)],         int),
+]
  
+SENSORS_METHODS: list[tuple[str, list[ParamSpec], type]] = [
+]
+ 
+# One entry per JSON-RPC prefix. The dict key is both the wire-level prefix
+# (key + ".") and the attribute name exposed on the client
+# (e.g. client.febmgr, client.fpga, client.sensors).
+NAMESPACE_SPEC: dict[str, list[tuple[str, list[ParamSpec], type]]] = {
+    "febmgr": FEBMGR_METHODS,
+    "fpga": FPGA_METHODS,
+    "sensors": SENSORS_METHODS,
+}
+
+
 # ---------------------------------------------------------------------------
 # Dynamic generation of client methods
 # ---------------------------------------------------------------------------
@@ -212,19 +249,23 @@ def _make_method(python_name: str, wire_name: str, params: list[ParamSpec], retu
     method.__qualname__ = python_name
     return method
  
- 
+
 def build_client_class(
     spec: list[tuple[str, list[ParamSpec], type]],
-    base: Type[BaseRpcClient] = BaseRpcClient,
+    base: Type = BaseRpcClient,
     class_name: str = "RpcClient",
     rpc_prefix: str = "",
-) -> Type[BaseRpcClient]:
-    """Dynamically build a client class with one method per spec entry.
+) -> Type:
+    """Dynamically build a class with one method per spec entry.
+ 
+    Works both for the top-level client (base=BaseRpcClient) and for
+    lightweight namespace wrappers (base=RpcNamespace) — both expose
+    a compatible self._call(method, params).
  
     rpc_prefix: prepended to each method name only in the JSON-RPC request
                 (e.g. "febmgr." turns getStatus() into a call to
                 "febmgr.getStatus" on the wire), while the Python attribute
-                name stays unprefixed (client.getStatus()).
+                name stays unprefixed (client.febmgr.getStatus()).
     """
     namespace: dict[str, Any] = {}
     for python_name, params, rtype in spec:
@@ -233,6 +274,42 @@ def build_client_class(
         wire_name = f"{rpc_prefix}{python_name}"
         namespace[python_name] = _make_method(python_name, wire_name, params, rtype)
     return type(class_name, (base,), namespace)
-
-MSSClient = build_client_class(METHOD_SPEC, rpc_prefix="febmgr.")
+ 
+ 
+def build_rpc_client(
+    namespace_spec: dict[str, list[tuple[str, list[ParamSpec], type]]],
+    base: Type[BaseRpcClient] = BaseRpcClient,
+    class_name: str = "RpcClient",
+) -> Type[BaseRpcClient]:
+    """Build a top-level client class exposing one sub-namespace attribute
+    per JSON-RPC prefix, e.g.:
+ 
+        client.febmgr.getStatus()      -> wire method "febmgr.getStatus"
+        client.fpga.reset()            -> wire method "fpga.reset"
+        client.sensors.readTemperature() -> wire method "sensors.readTemperature"
+ 
+    This avoids name collisions between methods with the same name in
+    different namespaces, and keeps the wire prefix explicit and visible
+    in the calling code.
+    """
+    namespace_classes: dict[str, Type[RpcNamespace]] = {
+        ns_name: build_client_class(
+            spec,
+            base=RpcNamespace,
+            class_name=f"{ns_name.capitalize()}Namespace",
+            rpc_prefix=f"{ns_name}.",
+        )
+        for ns_name, spec in namespace_spec.items()
+    }
+ 
+    def __init__(self, url: str, timeout: float = 10.0, session: Optional[requests.Session] = None):
+        base.__init__(self, url, timeout=timeout, session=session)
+        for ns_name, ns_class in namespace_classes.items():
+            setattr(self, ns_name, ns_class(self))
+ 
+    return type(class_name, (base,), {"__init__": __init__})
+ 
+ 
+MSSClient = build_rpc_client(NAMESPACE_SPEC)
+ 
 
