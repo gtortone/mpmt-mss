@@ -10,6 +10,7 @@ dependencies = [
     "pymodbus==3.9.2",
     "pyserial>=3.5",
     "requests>=2.34.2",
+    "smbus2>=0.6.1",
     "uvicorn>=0.49.0",
 ]
 

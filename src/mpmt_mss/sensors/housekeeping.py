@@ -3,11 +3,11 @@ from dataclasses import dataclass
 from typing import Callable
 from smbus2 import SMBus
 
-from sensors.tla2024 import TLA2024
-from sensors.bme280 import BME280
-from sensors.lsm303 import LSM303Accel, LSM303Magnet
+from mpmt_mss.sensors.tla2024 import TLA2024
+from mpmt_mss.sensors.bme280 import BME280
+from mpmt_mss.sensors.lsm303 import LSM303Accel, LSM303Magnet
 
-from mini_rpc import rpc_service, rpc_method
+from mpmt_mss.rpc import rpc_service, rpc_method
 
 @dataclass
 class SensorInfo:

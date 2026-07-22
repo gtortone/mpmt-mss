@@ -1,7 +1,7 @@
 import smbus2
 import time
 import sys
-from byteutils import *
+from mpmt_mss.sensors.byteutils import *
 
 class BMX160:
     
