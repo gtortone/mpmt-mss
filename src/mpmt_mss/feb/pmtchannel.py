@@ -179,21 +179,24 @@ class PMTChannel(DeviceChannel):
 
     @DeviceChannel.track_connection
     def setPMTSerialNumber(self, sn: str):
+        baseaddr = 0x08
         data = self.modbus.convert_to_registers(sn.ljust(12, '\0'), self.modbus.DATATYPE.STRING)
-        self.modbus.write_registers(address=0x08, values=data,
-          slave=self.address, no_response_expected=True)
+        for i in range(0, len(data)-1):
+            self.modbus.write_register(address=baseaddr+i, value=data[i], slave=self.address)
 
     @DeviceChannel.track_connection
     def setPMTHVSerialNumber(self, sn: str):
+        baseaddr = 0x0E
         data = self.modbus.convert_to_registers(sn.ljust(12, '\0'), self.modbus.DATATYPE.STRING)
-        self.modbus.write_registers(address=0x0E, values=data,
-          slave=self.address, no_response_expected=True)
+        for i in range(0, len(data)-1):
+            self.modbus.write_register(address=baseaddr+i, value=data[i], slave=self.address)
 
     @DeviceChannel.track_connection
     def setPMTFEBSerialNumber(self, sn: str):
+        baseaddr = 0x14
         data = self.modbus.convert_to_registers(sn.ljust(12, '\0'), self.modbus.DATATYPE.STRING)
-        self.modbus.write_registers(address=0x14, values=data,
-          slave=self.address, no_response_expected=True)
+        for i in range(0, len(data)-1):
+            self.modbus.write_register(address=baseaddr+i, value=data[i], slave=self.address)
 
     @DeviceChannel.track_connection
     def readPMTMonRegisters(self) -> dict:
@@ -225,9 +228,7 @@ class PMTChannel(DeviceChannel):
             "value": rr.registers[0x002E],
             "string": self.alarm_string(rr.registers[0x002E])
         }
-        #monData['alarm']['value'] = rr.registers[0x002E]
-        #monData['alarm']['string'] = self.alarm_string(rr.registers[0x002E])
-        
+
         return monData
 
     @DeviceChannel.track_connection
@@ -256,14 +257,16 @@ class PMTChannel(DeviceChannel):
         slope = int(slope * 10000)
         lsb = (slope & 0xFFFF)
         msb = (slope >> 16) & 0xFFFF
-        self.modbus.write_registers(address=0x30, values=[lsb, msb], slave=self.address, no_response_expected=True)
+        self.modbus.write_register(address=0x30, value=lsb, slave=self.address)
+        self.modbus.write_register(address=0x31, value=msb, slave=self.address)
 
     @DeviceChannel.track_connection
     def writePMTCalibOffset(self, offset: float):
         offset = int(offset * 10000)
         lsb = (offset & 0xFFFF)
         msb = (offset >> 16) & 0xFFFF
-        self.modbus.write_registers(address=0x32, values=[lsb, msb], slave=self.address, no_response_expected=True)
+        self.modbus.write_register(address=0x32, value=lsb, slave=self.address)
+        self.modbus.write_register(address=0x33, value=msb, slave=self.address)
 
     @DeviceChannel.track_connection
     def writePMTCalibDiscr(self, discr: float):
