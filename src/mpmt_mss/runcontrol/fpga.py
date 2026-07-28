@@ -1,5 +1,7 @@
 import sys
 import mmap
+import json
+import os
 from mpmt_mss.rpc import rpc_service, rpc_method
 
 
@@ -170,24 +172,12 @@ class FPGA:
         control = self.readRegister(self.REG_CONTROL)
 
         return {
-            "pllLocked": "locked" if (status & self.STATUS_PLL_LOCKED) > 0 else "not locked",
-            "clockStable": "unstable" if (status & self.STATUS_CLOCK_UNSTABLE) > 0 else "stable",
-            "activeSource": (
-                "internal"
-                if status & self.STATUS_ACTIVE_CLOCK_INTERNAL
-                else "external"
-            ),
-            "configuredSource": (
-                "internal"
-                if control & self.CTRL_CLOCK_INTERNAL
-                else "external"
-            ),
-            "activeCable": (
-                2 if status & self.STATUS_ACTIVE_CABLE_2 else 1
-            ),
-            "configuredCable": (
-                2 if control & self.CTRL_CLOCK_CABLE_2 else 1
-            ),
+            "pllLocked": bool(status & self.STATUS_PLL_LOCKED),
+            "clockUnstable": bool(status & self.STATUS_CLOCK_UNSTABLE),
+            "activeSource": bool(status & self.STATUS_ACTIVE_CLOCK_INTERNAL),
+            "configuredSource": bool(control & self.CTRL_CLOCK_INTERNAL),
+            "activeCable": (2 if status & self.STATUS_ACTIVE_CABLE_2 else 1),
+            "configuredCable": (2 if control & self.CTRL_CLOCK_CABLE_2 else 1),
             "cable1": {
                 "ok": bool(status & self.STATUS_CABLE_1_OK),
                 "lost": bool(status & self.STATUS_CABLE_1_LOST),
@@ -392,3 +382,15 @@ class FPGA:
             "bitstreamTime": f"{timeHex[0:2]}:{timeHex[2:4]}:{timeHex[4:6]}",
             "commitSha": f"{shaValue:08x}"
         }
+
+    # ------------------------------------------------------------------
+    # Default
+    # ------------------------------------------------------------------
+
+    @rpc_method
+    def setDefaults(self):
+        """Set all the registers to their default values"""
+        with open(f"{os.path.dirname(os.path.abspath(__file__))}/defaults.json") as f:
+            def_reg = json.load(f)
+            for add in def_reg.keys():
+                self.writeRegister(int(add), def_reg[add])

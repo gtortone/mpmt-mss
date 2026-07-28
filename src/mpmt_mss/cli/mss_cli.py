@@ -49,6 +49,8 @@ import typing
 from enum import Enum
 import re
 
+from mpmt_mss.runcontrol.fpga import FPGA
+
 try:
     import cmd2
 except ImportError:
@@ -349,6 +351,13 @@ PMT_INFO_PARSER = cmd2.Cmd2ArgumentParser(
                  "for every online PMT channel."
 )
 
+DEFAULT_PARSER = cmd2.Cmd2ArgumentParser(
+    description="Set all the FPGA register to their default values."
+)
+DEFAULT_PARSER.add_argument(
+    "-y", "--yes", action="store_true", help="skip the confirmation prompt"
+)
+
 FPGA_ADDRESS_PARSER = cmd2.Cmd2ArgumentParser()
 FPGA_ADDRESS_PARSER.add_argument('address', type=int, help='FPGA register address')
 
@@ -605,7 +614,7 @@ class MSSShell(cmd2.Cmd):
             self.poutput("Aborted.")
             return
         try:
-            self.client.febmgr.enableChannel(channels)
+            self.client.febmgr.enableAllChannels()
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
@@ -630,7 +639,7 @@ class MSSShell(cmd2.Cmd):
             self.poutput("Aborted.")
             return
         try:
-            self.client.febmgr.disableChannel(channels)
+            self.client.febmgr.disableAllChannels()
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
@@ -700,6 +709,68 @@ class MSSShell(cmd2.Cmd):
 
         headers, table_rows = _dicts_to_table(rows)
         self.poutput(_format_table(headers, table_rows))
+
+    @cmd2.with_category("RPC commands")
+    @cmd2.with_argparser(DEFAULT_PARSER)
+    def do_default(self, args: argparse.Namespace):
+        """Restore all the FPGA registers to their default values."""
+        if not args.yes and not self._confirm(f"Warning: do you want to reset all the regsters to their default values?"):
+            self.poutput("Aborted.")
+            return
+        try:
+            self.client.fpga.setDefaults()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"FPGA registers restored to default values.")
+
+    @cmd2.with_category("RPC commands")
+    def do_tr(self, _args):
+        """Print Tr32 and TagT status"""
+        try:
+            values = self.client.fpga.getTr32Status()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"Tr32: {'received' if values['received'] else 'not received'}, {'aligned' if values['aligned'] else 'not aligned'} and {'arrived early' if values['arrivedEarly'] else 'in synch'} - counted: {values['count']}")
+        self.poutput(f"TagT: {'received' if values['tagTReceived'] else 'not received'} ({'parity ok' if values['tagTParityOk'] else 'parity not ok'})")
+
+    @cmd2.with_category("RPC commands")
+    def do_clock(self, _args):
+        """Restore clock status."""
+        try:
+            values = self.client.fpga.getClockStatus()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"PLL: {'locked' if values['pllLocked'] else 'free running'} and {'unstable' if values['clockUnstable'] else 'stable'}")
+        self.poutput(f"Sources: {'Quartz' if values['configuredSource'] else 'Cable'} (set to {'Quartz' if values['activeSource'] else 'Cable'})"
+                     f" - cable {values['configuredCable']} (set to {values['activeCable']})")
+        self.poutput(f"Cable 1: {'OK' if values['cable1']['ok'] else 'not OK'}, {'Lost' if values['cable1']['lost'] else 'not Lost'}, {'Found' if values['cable1']['found'] else 'not Found'}")
+        self.poutput(f"Cable 2: {'OK' if values['cable2']['ok'] else 'not OK'}, {'Lost' if values['cable2']['lost'] else 'not Lost'}, {'Found' if values['cable2']['found'] else 'not Found'}")
+
+    @cmd2.with_category("RPC commands")
+    def do_version(self, _args):
+        """Restore all the FPGA registers to their default values."""
+        try:
+            values = self.client.fpga.getFirmwareInfo()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"Firmware version {values['version']}")
+        self.poutput(f"Bitstream created the {values['bitstreamDate']} at {values['bitstreamTime']} (commit SHA: {values['commitSha']})")
 
     # -- utility ----------------------------------------------------------
 

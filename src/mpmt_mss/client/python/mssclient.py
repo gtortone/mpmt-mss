@@ -222,7 +222,8 @@ FPGA_METHODS: list[tuple[str, ParamSpecDef, type]] = [
     ("getDeadtime",                 [],                                                                    dict[str, float | int]),
     ("getHousekeeping",             [],                                                                    dict),
     ("getFifoStatus",               [],                                                                    dict),
-    ("getFirmwareInfo",             [],                                                                    dict[str, str])
+    ("getFirmwareInfo",             [],                                                                    dict[str, str]),
+    ("setDefaults",                 [],                                                                    type(None))
 ]
 
 SENSORS_METHODS: list[tuple[str, list[ParamSpec], type]] = [
