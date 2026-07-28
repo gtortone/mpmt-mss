@@ -23,7 +23,7 @@ class DeviceChannel(ABC):
     DEVICE_TYPE = None
 
     # decorators
-
+    @staticmethod
     def validate_range(min_value, max_value):
         def decorator(func):
             @wraps(func)
@@ -34,6 +34,7 @@ class DeviceChannel(ABC):
             return wrapper
         return decorator
 
+    @staticmethod
     def track_connection(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
@@ -41,7 +42,7 @@ class DeviceChannel(ABC):
                 ret = func(self, *args, **kwargs)
             except Exception as e:
                 self.online = False 
-                raise(e)
+                raise e
             else:
                 self.online = True
                 return ret
@@ -58,5 +59,5 @@ class DeviceChannel(ABC):
         None
 
     def __str__(self):
-        return (f"Board channel: {self.channel}, MB address: {self.address}, online: {self.online}")
+        return f"Board channel: {self.channel}, MB address: {self.address}, online: {self.online}"
 

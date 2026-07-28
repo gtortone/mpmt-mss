@@ -4,6 +4,7 @@ from pymodbus import FramerType, ModbusException
 from multiprocessing import Lock
 from pydantic.dataclasses import dataclass
 from typing import Literal, Optional
+import time
 
 @dataclass
 class ModbusConfig:
@@ -23,12 +24,12 @@ class ModbusManager:
 
     @staticmethod
     def getInstance():
-        if ModbusManager.__instance == None:
+        if ModbusManager.__instance is None:
             raise Exception("Class ModbusManager - no instance")
         return ModbusManager.__instance
 
     def __init__(self, param: ModbusConfig):
-        if ModbusManager.__instance != None:
+        if ModbusManager.__instance is not None:
             raise Exception("Class ModbusManager - use existing instance")
         else:
             ModbusManager.__instance = self
@@ -66,6 +67,7 @@ class ModbusManager:
         if self.connected:
             self.client.close()
 
+    @staticmethod
     def check_connect(func):
         def wrapper(self, *args, **kwargs):
             if not self.connected:
@@ -73,6 +75,7 @@ class ModbusManager:
             return func(self, *args, **kwargs)
         return wrapper
 
+    @staticmethod
     def critical_section(func):
         def wrapper(self, *args, **kwargs):
             self.mutex.acquire()
@@ -87,7 +90,7 @@ class ModbusManager:
     def open(self, slave: int):
         try:
             rr = self.client.read_holding_registers(address=0, count=1, slave=slave)
-        except Exception as e:
+        except Exception:
             return False
 
         if (rr is None) or (rr.isError()):
@@ -98,77 +101,78 @@ class ModbusManager:
     @check_connect
     @critical_section
     def read_holding_registers(self, address: int, count: int, slave: int):
-        rr = None
         try:
             rr = self.client.read_holding_registers(address=address, count=count, slave=slave)
         except Exception as e:
-            raise(e)
+            raise e
         return rr
 
     @check_connect
     @critical_section
     def read_input_registers(self, address: int, count: int, slave: int):
-        rr = None
         try:
             rr = self.client.read_input_registers(address=address, count=count, slave=slave)
         except Exception as e:
-            raise(e)
+            raise e
         return rr
 
     @check_connect
     @critical_section
     def read_discrete_inputs(self, address: int, count: int, slave: int):
-        rr = None
         try:
             rr = self.client.read_discrete_inputs(address=address, count=count, slave=slave)
         except Exception as e:
-            raise(e)
+            raise e
         return rr
 
     @check_connect
     @critical_section
     def read_coils(self, address: int, count: int, slave: int):
-        rr = None
         try:
             rr = self.client.read_coils(address=address, count=count, slave=slave)
         except Exception as e:
-            raise(e)
+            raise e
         return rr
 
     @check_connect
     @critical_section
-    def write_register(self, address: int, value: int, slave: int):
-        rr = None
-        try:
-            rr = self.client.write_register(address=address, value=value, slave=slave)
-        except Exception as e:
-            raise(e)
-        return rr
+    def write_register(self, address: int, value: int, slave: int, no_response_expected: bool = False):
+        if no_response_expected:
+            self.client.write_register(address=address, value=value, slave=slave, no_response_expected=no_response_expected)
+            time.sleep(0.05) # critical with no response expected
+            return None
+        else:
+            try:
+                rr = self.client.write_register(address=address, value=value, slave=slave)
+            except Exception as e:
+                raise e
+            return rr
 
     @check_connect
     @critical_section
-    def write_registers(self, address: int, values: list, slave: int, no_response_expected=False):
-        rr = None
+    def write_registers(self, address: int, values: list, slave: int):
         try:
-            rr = self.client.write_registers(
-                address=address, values=values, slave=slave, no_response_expected=no_response_expected)
+            rr = self.client.write_registers(address=address, values=values, slave=slave)
         except Exception as e:
-            raise(e)
+            raise e
         return rr
         
     @check_connect
     @critical_section
-    def write_coil(self, address: int, value: int, slave: int):
-        rr = None
-        try:
-            rr = self.client.write_coil(address=address, value=value, slave=slave)
-        except Exception as e:
-            raise(e)
-        return rr
+    def write_coil(self, address: int, value: bool, slave: int, no_response_expected: bool = False):
+        if no_response_expected:
+            self.client.write_coil(address=address, value=value, slave=slave, no_response_expected=no_response_expected)
+            time.sleep(0.05) # critical with no response expected
+            return None
+        else:
+            try:
+                rr = self.client.write_coil(address=address, value=value, slave=slave)
+            except Exception as e:
+                raise e
+            return rr
     
     def convert_from_registers(self, registers: list, data_type):
         return self.client.convert_from_registers(registers, data_type)
 
     def convert_to_registers(self, data: str, data_type):
         return self.client.convert_to_registers(data, data_type)
-

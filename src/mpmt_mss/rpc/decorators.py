@@ -1,4 +1,3 @@
-
 def rpc_service(name: str = None):
     # class wrapper
     def wrapper(cls):

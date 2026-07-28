@@ -47,6 +47,7 @@ import sys
 import time
 import typing
 from enum import Enum
+import re
 
 try:
     import cmd2
@@ -141,19 +142,60 @@ def _method_help(python_name: str, params: list, rtype) -> str:
 # ---------------------------------------------------------------------------
 # Plain-text table formatting (no external dependency).
 # ---------------------------------------------------------------------------
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_ANSI_RESET = "\033[0m"
+_ANSI_GREEN = "\033[32m"
+_ANSI_RED = "\033[31m"
+_ANSI_BLUE = "\033[36m"
+
+def _visible_len(value: str) -> int:
+    return len(_ANSI_RE.sub("", value))
+
+def _green(value: str) -> str:
+    return f"{_ANSI_GREEN}{value}{_ANSI_RESET}"
+
+def _red(value: str) -> str:
+    return f"{_ANSI_RED}{value}{_ANSI_RESET}"
+
+def _blue(value: str) -> str:
+    return f"{_ANSI_BLUE}{value}{_ANSI_RESET}"
+
+def _colorize_status_value(value):
+    if not isinstance(value, str):
+        return value
+
+    normalized = value.strip().lower()
+
+    if normalized in ("enabled", "free", "up"):
+        return _green(value)
+
+    if normalized in ("disabled", "blocked", "trip"):
+        return _red(value)
+
+    return value
+
+def _ljust_ansi(value: str, width: int) -> str:
+    return value + " " * max(0, width - _visible_len(value))
 
 def _format_table(headers: list, rows: list) -> str:
-    str_rows = [["" if v is None else str(v) for v in row] for row in rows]
-    widths = [len(str(h)) for h in headers]
+    str_headers = [str(h) for h in headers]
+    str_rows = [
+        ["" if v is None else str(_colorize_status_value(v)) for v in row]
+        for row in rows
+    ]
+
+    widths = [_visible_len(h) for h in str_headers]
     for row in str_rows:
         for i, v in enumerate(row):
             if i < len(widths):
-                widths[i] = max(widths[i], len(v))
+                widths[i] = max(widths[i], _visible_len(v))
 
     def fmt(vals):
-        return "  ".join(str(v).ljust(widths[i]) for i, v in enumerate(vals))
+        return "  ".join(_ljust_ansi(str(v), widths[i]) for i, v in enumerate(vals))
 
-    lines = [fmt(headers), fmt(["-" * w for w in widths])]
+    blue_headers = [_blue(h) for h in str_headers]
+
+    lines = [fmt(blue_headers), fmt(["-" * w for w in widths])]
     lines += [fmt(row) for row in str_rows]
     return "\n".join(lines)
 
@@ -306,6 +348,9 @@ PMT_INFO_PARSER = cmd2.Cmd2ArgumentParser(
     description="Show a table with getPMTInfo() (serial numbers, fw version) "
                  "for every online PMT channel."
 )
+
+FPGA_ADDRESS_PARSER = cmd2.Cmd2ArgumentParser()
+FPGA_ADDRESS_PARSER.add_argument('address', type=int, help='FPGA register address')
 
 # febmgr methods that read or change which channels are online: after they
 # run it's worth re-displaying the refreshed online status.
@@ -560,7 +605,7 @@ class MSSShell(cmd2.Cmd):
             self.poutput("Aborted.")
             return
         try:
-            self.client.febmgr.enableChannels(channels)
+            self.client.febmgr.enableChannel(channels)
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
@@ -585,7 +630,7 @@ class MSSShell(cmd2.Cmd):
             self.poutput("Aborted.")
             return
         try:
-            self.client.febmgr.disableChannels(channels)
+            self.client.febmgr.disableChannel(channels)
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
@@ -618,7 +663,7 @@ class MSSShell(cmd2.Cmd):
 
         rows = []
         for channel in sorted(report, key=int):
-            row = {"channel": channel}
+            row = {"Channel": channel}
             row.update(_flatten_monitor_dict(report[channel]))
             rows.append(row)
 
@@ -704,6 +749,36 @@ class MSSShell(cmd2.Cmd):
             return
         for m in resp.json().get("methods", []):
             self.poutput(m)
+
+    @cmd2.with_category("Utility")
+    @cmd2.with_argparser(FPGA_ADDRESS_PARSER)
+    def do_dump(self, args: argparse.Namespace):
+        """Dump one FPGA register as a 32-bit value split into bytes."""
+        try:
+            value = self.client.fpga.readRegister(args.address)
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+
+        value &= 0xFFFFFFFF
+        bytes_msb_to_lsb = [
+            (value >> 24) & 0xFF,
+            (value >> 16) & 0xFF,
+            (value >> 8) & 0xFF,
+            value & 0xFF,
+        ]
+        self.poutput(f"Register {args.address}: 0x{value:08X} ({value})")
+        headers = ["Format", "31..24", "23..16", "15..8", "7..0"]
+        rows = [
+            ["Binary", *(f"{byte:08b}" for byte in bytes_msb_to_lsb)],
+            ["Hex", *(f"0x{byte:02X}" for byte in bytes_msb_to_lsb)],
+            ["Decimal", *bytes_msb_to_lsb]
+        ]
+
+        self.poutput(_format_table(headers, rows))
 
     @cmd2.with_category("Utility")
     @cmd2.with_argparser(CONNECT_PARSER)

@@ -115,14 +115,40 @@ FEBMGR_METHODS: list[tuple[str, list[ParamSpec], type]] = [
     ("getOnlineChannels",       [("channel_type", Optional[DeviceType], False)],        List[int]),
     ("getOfflineChannels",      [("channel_type", Optional[DeviceType], False)],        List[int]),
     ("getStatus",               [("channel_type", Optional[DeviceType], False)],        List[dict]),
-    ("enableChannel",           [("channel", int, True)],                               type(None)),
-    ("disableChannel",          [("channel", int, True)],                               type(None)),
-    ("enableChannels",          [("channels", List[int], True)],                        type(None)),
-    ("disableChannels",         [("channels", List[int], True)],                        type(None)),
+    ("enableChannel",           [("channels", List[int], True)],                        type(None)),
+    ("disableChannel",          [("channels", List[int], True)],                        type(None)),
+    ("enableAllChannels",       [],                                                     type(None)),
+    ("disableAllChannels",      [],                                                     type(None)),
     ("enableChannelsByMask",    [("mask", int, True)],                                  type(None)),
     ("disableChannelsByMask",   [("mask", int, True)],                                  type(None)),
+    ("enableAcqChannel",        [("channels", List[int], True)],                        type(None)),
+    ("disableAcqChannel",       [("channels", List[int], True)],                        type(None)),
+    ("enableAcqAll",            [],                                                     type(None)),
+    ("disableAcqAll",           [],                                                     type(None)),
+    ("clearChannel",            [("channels", List[int], True)],                        type(None)),
+    ("freeChannel",             [("channels", List[int], True)],                        type(None)),
+    ("clearAll",                [],                                                     type(None)),
+    ("freeAll",                 [],                                                     type(None)),
+    ("enableTriggerChannel",    [("channels", List[int], True)],                        type(None)),
+    ("disableTriggerChannel",   [("channels", List[int], True)],                        type(None)),
+    ("enableAllTrigger",        [],                                                     type(None)),
+    ("disableAllTrigger",       [],                                                     type(None)),
+    ("enablePulserChannel",     [("channels", List[int], True)],                        type(None)),
+    ("disablePulserChannel",    [("channels", List[int], True)],                        type(None)),
+    ("enableAllPulser",         [],                                                     type(None)),
+    ("disableAllPulser",        [],                                                     type(None)),
+    ("setTimeToPeakChannel",    [("channel", int, True), ("value", int, True)],         type(None)),
+    ("setAllTimeToPeak",        [("value", int, True)],                                 type(None)),
+    ("setDelayChannel",         [("channels", int, True), ("value", int, True)],        type(None)),
+    ("setAllDelay",             [("value", int, True)],                                 type(None)),
+    ("setRateThresholdChannel", [("channel", int, True), ("value", int, True)],         type(None)),
+    ("setAllRateThreshold",     [("value", int, True)],                                 type(None)),
+    ("powerPMTOnAll",           [],                                                     type(None)),
+    ("powerPMTOffAll",          [],                                                     type(None)),
+    ("setPMTThresholdAll",      [("value", float, True)],                               type(None)),
+    ("setPMTModbusAddressForced", [("addr", int, True)],                                type(None)),
 
-    ("getPMTStatus",            [("channel", int, True)],                               dict), 
+    ("getPMTStatus",            [("channel", int, True)],                               dict),
     ("getPMTVoltage",           [("channel", int, True)],                               float),
     ("getPMTVoltageSet",        [("channel", int, True)],                               float),
     ("setPMTVoltageSet",        [("channel", int, True), ("value", int, True)],         type(None)),
@@ -165,25 +191,47 @@ FEBMGR_METHODS: list[tuple[str, list[ParamSpec], type]] = [
     ("readLEDMonRegisters",     [("channel", int, True)],                               dict),
     ("powerLEDOn",              [("channel", int, True)],                               type(None)),
     ("powerLEDOff",             [("channel", int, True)],                               type(None)),
-    ("setLEDTrigger",           [("channel", int, True), ("value", bool, True)],         type(None)),
+    ("setLEDTrigger",           [("channel", int, True), ("value", bool, True)],        type(None)),
     ("setLEDTriggerSource",     [("channel", int, True), ("source", TriggerSource, True)],  type(None)),
-    ("setLEDBias",              [("channel", int, True), ("value", bool, True)],         type(None)),
+    ("setLEDBias",              [("channel", int, True), ("value", bool, True)],        type(None)),
     ("setLEDBiasVoltage",       [("channel", int, True), ("value", float, True)],       type(None)),
-    ("setLEDChannels",          [("channel", int, True), ("channels", List[int], True), ("append", Optional[bool], False)], type(None)),
+    ("setLEDChannels",          [("channel", int, True), ("channels", List[int], True), ("append", Optional[bool], False)], type(None))
 ]
 
-FPGA_METHODS: list[tuple[str, list[ParamSpec], type]] = [
-    ("readRegister",            [("address", int, True)],                               int),
-    ("writeRegister",           [("address", int, True), ("value", int, True)],         int),
+FPGA_METHODS: list[tuple[str, ParamSpecDef, type]] = [
+    ("readRegister",                [("address", int, True)],                                              int),
+    ("writeRegister",               [("address", int, True), ("value", int, True)],                        type(None)),
+    ("setPulserFrequency",          [("frequencyHz", int, True)],                                          type(None)),
+    ("getPulserFrequency",          [],                                                                    dict[str, int]),
+    ("setPulserSubhits",            [("subhits", int, True)],                                              type(None)),
+    ("getPulserSubhits",            [],                                                                    type(None)),
+    ("setClockSource",              [("source", str, True)],                                               type(None)),
+    ("setClockCable",               [("cable", int, True)],                                                type(None)),
+    ("getClockStatus",              [],                                                                    dict),
+    ("getTr32Status",               [],                                                                    dict),
+    ("enableTr32Channel",           [],                                                                    type(None)),
+    ("disableTr32Channel",          [],                                                                    type(None)),
+    ("requestAdcCalibration",       [],                                                                    type(None)),
+    ("setSpiClock",                 [("selection", int, True)],                                            type(None)),
+    ("getSpiClock",                 [],                                                                    float),
+    ("setFifoReset",                [("reset", bool, True)],                                               str),
+    ("setDataShifterTimeout",       [("ticks", int, True)],                                                type(None)),
+    ("getDataShifterTimeout",       [],                                                                    int),
+    ("setTriggerWindow",            [("ticks", int, True)],                                                type(None)),
+    ("getTriggerWindow",            [],                                                                    int),
+    ("getDeadtime",                 [],                                                                    dict[str, float | int]),
+    ("getHousekeeping",             [],                                                                    dict),
+    ("getFifoStatus",               [],                                                                    dict),
+    ("getFirmwareInfo",             [],                                                                    dict[str, str])
 ]
- 
+
 SENSORS_METHODS: list[tuple[str, list[ParamSpec], type]] = [
-    ("read",                    [],                                                     dict),
+    ("read",                        [],                                                                    dict),
 ]
  
 # One entry per JSON-RPC prefix. The dict key is both the wire-level prefix
 # (key + ".") and the attribute name exposed on the client
-# (e.g. client.febmgr, client.fpga, client.sensors).
+# (e.g., client.febmgr, client.fpga, client.sensors).
 NAMESPACE_SPEC: dict[str, list[tuple[str, list[ParamSpec], type]]] = {
     "febmgr": FEBMGR_METHODS,
     "fpga": FPGA_METHODS,
