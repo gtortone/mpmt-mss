@@ -743,7 +743,7 @@ class MSSShell(cmd2.Cmd):
 
     @cmd2.with_category("RPC commands")
     def do_clock(self, _args):
-        """Restore clock status."""
+        """Print clock status."""
         try:
             values = self.client.fpga.getClockStatus()
         except mssclient.JsonRpcError as exc:
@@ -760,7 +760,7 @@ class MSSShell(cmd2.Cmd):
 
     @cmd2.with_category("RPC commands")
     def do_version(self, _args):
-        """Restore all the FPGA registers to their default values."""
+        """Print the current firmware version."""
         try:
             values = self.client.fpga.getFirmwareInfo()
         except mssclient.JsonRpcError as exc:
@@ -771,6 +771,19 @@ class MSSShell(cmd2.Cmd):
             return
         self.poutput(f"Firmware version {values['version']}")
         self.poutput(f"Bitstream created the {values['bitstreamDate']} at {values['bitstreamTime']} (commit SHA: {values['commitSha']})")
+
+    @cmd2.with_category("RPC commands")
+    def do_fifo(self, _args):
+        """Print FIFO status."""
+        try:
+            values = self.client.fpga.getFifoStatus()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"Words in FIFO: {values['words']}, {'full' if values['full'] else 'NOT full'}")
 
     # -- utility ----------------------------------------------------------
 
