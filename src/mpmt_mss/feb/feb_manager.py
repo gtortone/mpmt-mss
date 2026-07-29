@@ -71,7 +71,7 @@ class FEBManager:
     def __init__(self, cfg: ModbusConfig, config_from_fpga=True):
         self.modbus = ModbusManager(cfg)
         self.fpga = FPGA('/dev/uio0')
-        self.all_channels_mask = 0xFFFFFFFF
+        self.all_channels_mask = 0x7FFFF
         self.UINT32_MASK = 0xFFFFFFFF
 
         # channels are labeled from J1 to J19 (1...19)
@@ -256,7 +256,7 @@ class FEBManager:
             "Pulser": "enabled" if self.fpga.readRegister(59) & self._channelMask(channel) else "disabled",
             "Block": "blocked" if self.fpga.readRegister(5) & self._channelMask(channel) else "free",
             "Rate": self.fpga.readRegister(8 + channel - 1),
-            "Rate threshold": self.getChannelRateThreshold()[str(channel)],
+            "Rate threshold": self.getRateThreshold()[str(channel)],
             "Time to peak": self.getTimeToPeak()[str(channel)]*3.7,
         }
         return status
@@ -492,6 +492,7 @@ class FEBManager:
         for offset in range(registerCount):
             self.fpga.writeRegister(28 + offset, packed)
 
+    @rpc_method
     def getTimeToPeak(self) -> dict[str, int]:
         """Get all channels time-to-peak."""
         ttps = {}
@@ -574,7 +575,8 @@ class FEBManager:
         for add in range(46, 56):
             self.fpga.writeRegister(register, value)
 
-    def getChannelRateThreshold(self) -> dict[str, int]:
+    @rpc_method
+    def getRateThreshold(self) -> dict[str, int]:
         """Get all channels rate threshold in Hz."""
         thresholds = {}
         for ch in range(19):
@@ -590,15 +592,17 @@ class FEBManager:
     # ------------------------------------------------------------------
     # Ratemeters: no RPC methods only for status
     # ------------------------------------------------------------------
-    def getChannelRate(self, channel: int) -> int:
+    @rpc_method
+    def getRateChannel(self, channel: int) -> int:
         """Get channel ratemeter in Hz."""
         self._validateChannel(channel)
-        return self.fpga.readRegister(self.REG_RATE_BASE + channel - 1)
+        return self.fpga.readRegister(8 + channel - 1)
 
-    def getAllChannelRates(self) -> dict[str, int]:
+    @rpc_method
+    def getRateAll(self) -> dict[str, int]:
         """Get all channels ratemeters in Hz."""
         rates = {}
         for ch in range(19):
-            register = self.REG_RATE_BASE + ch
+            register = 8 + ch
             rates[str(ch+1)] = self.fpga.readRegister(register)
         return rates

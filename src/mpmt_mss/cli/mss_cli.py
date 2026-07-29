@@ -49,8 +49,6 @@ import typing
 from enum import Enum
 import re
 
-from mpmt_mss.runcontrol.fpga import FPGA
-
 try:
     import cmd2
 except ImportError:
