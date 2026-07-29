@@ -171,11 +171,9 @@ class PMTChannel(DeviceChannel):
         pmtsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x0E, count=6, slave=self.address).registers
         hvsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
-        l = self.modbus.read_holding_registers(address=0x14, count=6, slave=self.address).registers
-        febsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x04, count=2, slave=self.address).registers
         devid = (l[1] << 16) + l[0]
-        return {"fwver": fwver, "pmtsn": pmtsn, "hvsn": hvsn, "febsn": febsn, "devid": str(devid)}
+        return {"fwver": fwver, "pmtsn": pmtsn, "hvsn": hvsn, "febsn": str(devid)}
 
     @DeviceChannel.track_connection
     def setPMTSerialNumber(self, sn: str):
@@ -207,11 +205,9 @@ class PMTChannel(DeviceChannel):
            return {}
 
         monData['status'] = { 
-            "value": rr.registers[0x0006], 
+            "value": rr.registers[0x0006],
             "string": self.STATUS_MAP.get(rr.registers[0x0006], "undef")
         }
-        #monData['status']['value'] = rr.registers[0x0006]
-        #monData['status']['string'] = self.STATUS_MAP.get(rr.registers[0x0006], "undef")
         monData['Vset'] = rr.registers[0x0026]
         monData['V'] = ((rr.registers[0x002B] << 16) + rr.registers[0x002A]) / 1000
         monData['I'] = ((rr.registers[0x0029] << 16) + rr.registers[0x0028]) / 1000
@@ -222,7 +218,6 @@ class PMTChannel(DeviceChannel):
         monData['limitI'] = rr.registers[0x0025]
         monData['limitT'] = rr.registers[0x002F]
         monData['limitTRIP'] = rr.registers[0x0022]
-        threshold = rr.registers[0x002D] + (rr.registers[0x0035] / 10)
         monData['threshold'] = rr.registers[0x002D] + rr.registers[0x0035]/10
         monData['alarm'] = {
             "value": rr.registers[0x002E],

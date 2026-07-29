@@ -19,17 +19,14 @@ class BME280:
    def readId(self):
       REG_ID = 0xD0
       (chip_id, chip_version) = self.i2cbus.read_i2c_block_data(self.address, REG_ID, 2)
-      return (chip_id, chip_version)
+      return chip_id, chip_version
 
    def readAll(self):
       # Register Addresses
       REG_DATA = 0xF7
       REG_CONTROL = 0xF4
-      REG_CONFIG  = 0xF5
 
       REG_CONTROL_HUM = 0xF2
-      REG_HUM_MSB = 0xFD
-      REG_HUM_LSB = 0xFE
 
       # Oversample setting - page 27
       OVERSAMPLE_TEMP = 2
@@ -80,7 +77,7 @@ class BME280:
 
       # Wait in ms (Datasheet Appendix B: Measurement time and current calculation)
       wait_time = 1.25 + (2.3 * OVERSAMPLE_TEMP) + ((2.3 * OVERSAMPLE_PRES) + 0.575) + ((2.3 * OVERSAMPLE_HUM)+0.575)
-      time.sleep(wait_time/1000)  # Wait the required time  
+      time.sleep(wait_time/1000)  # Wait the required time
 
       # Read temperature/pressure/humidity
       data = self.i2cbus.read_i2c_block_data(self.address, REG_DATA, 8)

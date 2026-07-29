@@ -47,6 +47,7 @@ import sys
 import time
 import typing
 from enum import Enum
+import re
 
 try:
     import cmd2
@@ -141,19 +142,60 @@ def _method_help(python_name: str, params: list, rtype) -> str:
 # ---------------------------------------------------------------------------
 # Plain-text table formatting (no external dependency).
 # ---------------------------------------------------------------------------
+_ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_ANSI_RESET = "\033[0m"
+_ANSI_GREEN = "\033[32m"
+_ANSI_RED = "\033[31m"
+_ANSI_BLUE = "\033[36m"
+
+def _visible_len(value: str) -> int:
+    return len(_ANSI_RE.sub("", value))
+
+def _green(value: str) -> str:
+    return f"{_ANSI_GREEN}{value}{_ANSI_RESET}"
+
+def _red(value: str) -> str:
+    return f"{_ANSI_RED}{value}{_ANSI_RESET}"
+
+def _blue(value: str) -> str:
+    return f"{_ANSI_BLUE}{value}{_ANSI_RESET}"
+
+def _colorize_status_value(value):
+    if not isinstance(value, str):
+        return value
+
+    normalized = value.strip().lower()
+
+    if normalized in ("enabled", "free", "up"):
+        return _green(value)
+
+    if normalized in ("disabled", "blocked", "trip"):
+        return _red(value)
+
+    return value
+
+def _ljust_ansi(value: str, width: int) -> str:
+    return value + " " * max(0, width - _visible_len(value))
 
 def _format_table(headers: list, rows: list) -> str:
-    str_rows = [["" if v is None else str(v) for v in row] for row in rows]
-    widths = [len(str(h)) for h in headers]
+    str_headers = [str(h) for h in headers]
+    str_rows = [
+        ["" if v is None else str(_colorize_status_value(v)) for v in row]
+        for row in rows
+    ]
+
+    widths = [_visible_len(h) for h in str_headers]
     for row in str_rows:
         for i, v in enumerate(row):
             if i < len(widths):
-                widths[i] = max(widths[i], len(v))
+                widths[i] = max(widths[i], _visible_len(v))
 
     def fmt(vals):
-        return "  ".join(str(v).ljust(widths[i]) for i, v in enumerate(vals))
+        return "  ".join(_ljust_ansi(str(v), widths[i]) for i, v in enumerate(vals))
 
-    lines = [fmt(headers), fmt(["-" * w for w in widths])]
+    blue_headers = [_blue(h) for h in str_headers]
+
+    lines = [fmt(blue_headers), fmt(["-" * w for w in widths])]
     lines += [fmt(row) for row in str_rows]
     return "\n".join(lines)
 
@@ -306,6 +348,16 @@ PMT_INFO_PARSER = cmd2.Cmd2ArgumentParser(
     description="Show a table with getPMTInfo() (serial numbers, fw version) "
                  "for every online PMT channel."
 )
+
+DEFAULT_PARSER = cmd2.Cmd2ArgumentParser(
+    description="Set all the FPGA register to their default values."
+)
+DEFAULT_PARSER.add_argument(
+    "-y", "--yes", action="store_true", help="skip the confirmation prompt"
+)
+
+FPGA_ADDRESS_PARSER = cmd2.Cmd2ArgumentParser()
+FPGA_ADDRESS_PARSER.add_argument('address', type=int, help='FPGA register address')
 
 # febmgr methods that read or change which channels are online: after they
 # run it's worth re-displaying the refreshed online status.
@@ -560,7 +612,7 @@ class MSSShell(cmd2.Cmd):
             self.poutput("Aborted.")
             return
         try:
-            self.client.febmgr.enableChannels(channels)
+            self.client.febmgr.enableAllChannels()
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
@@ -585,7 +637,7 @@ class MSSShell(cmd2.Cmd):
             self.poutput("Aborted.")
             return
         try:
-            self.client.febmgr.disableChannels(channels)
+            self.client.febmgr.disableAllChannels()
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
@@ -618,7 +670,7 @@ class MSSShell(cmd2.Cmd):
 
         rows = []
         for channel in sorted(report, key=int):
-            row = {"channel": channel}
+            row = {"Channel": channel}
             row.update(_flatten_monitor_dict(report[channel]))
             rows.append(row)
 
@@ -655,6 +707,81 @@ class MSSShell(cmd2.Cmd):
 
         headers, table_rows = _dicts_to_table(rows)
         self.poutput(_format_table(headers, table_rows))
+
+    @cmd2.with_category("RPC commands")
+    @cmd2.with_argparser(DEFAULT_PARSER)
+    def do_default(self, args: argparse.Namespace):
+        """Restore all the FPGA registers to their default values."""
+        if not args.yes and not self._confirm(f"Warning: do you want to reset all the regsters to their default values?"):
+            self.poutput("Aborted.")
+            return
+        try:
+            self.client.fpga.setDefaults()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"FPGA registers restored to default values.")
+
+    @cmd2.with_category("RPC commands")
+    def do_tr(self, _args):
+        """Print Tr32 and TagT status"""
+        try:
+            values = self.client.fpga.getTr32Status()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"Tr32: {'received' if values['received'] else 'not received'}, {'aligned' if values['aligned'] else 'not aligned'} and {'arrived early' if values['arrivedEarly'] else 'in synch'} - counted: {values['count']}")
+        self.poutput(f"TagT: {'received' if values['tagTReceived'] else 'not received'} ({'parity ok' if values['tagTParityOk'] else 'parity not ok'})")
+
+    @cmd2.with_category("RPC commands")
+    def do_clock(self, _args):
+        """Print clock status."""
+        try:
+            values = self.client.fpga.getClockStatus()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"PLL: {'locked' if values['pllLocked'] else 'free running'} and {'unstable' if values['clockUnstable'] else 'stable'}")
+        self.poutput(f"Sources: {'Quartz' if values['configuredSource'] else 'Cable'} (set to {'Quartz' if values['activeSource'] else 'Cable'})"
+                     f" - cable {values['configuredCable']} (set to {values['activeCable']})")
+        self.poutput(f"Cable 1: {'OK' if values['cable1']['ok'] else 'not OK'}, {'Lost' if values['cable1']['lost'] else 'not Lost'}, {'Found' if values['cable1']['found'] else 'not Found'}")
+        self.poutput(f"Cable 2: {'OK' if values['cable2']['ok'] else 'not OK'}, {'Lost' if values['cable2']['lost'] else 'not Lost'}, {'Found' if values['cable2']['found'] else 'not Found'}")
+
+    @cmd2.with_category("RPC commands")
+    def do_version(self, _args):
+        """Print the current firmware version."""
+        try:
+            values = self.client.fpga.getFirmwareInfo()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"Firmware version {values['version']}")
+        self.poutput(f"Bitstream created the {values['bitstreamDate']} at {values['bitstreamTime']} (commit SHA: {values['commitSha']})")
+
+    @cmd2.with_category("RPC commands")
+    def do_fifo(self, _args):
+        """Print FIFO status."""
+        try:
+            values = self.client.fpga.getFifoStatus()
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+        self.poutput(f"Words in FIFO: {values['words']}, {'full' if values['full'] else 'NOT full'}")
 
     # -- utility ----------------------------------------------------------
 
@@ -704,6 +831,36 @@ class MSSShell(cmd2.Cmd):
             return
         for m in resp.json().get("methods", []):
             self.poutput(m)
+
+    @cmd2.with_category("Utility")
+    @cmd2.with_argparser(FPGA_ADDRESS_PARSER)
+    def do_dump(self, args: argparse.Namespace):
+        """Dump one FPGA register as a 32-bit value split into bytes."""
+        try:
+            value = self.client.fpga.readRegister(args.address)
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Transport error: {exc}")
+            return
+
+        value &= 0xFFFFFFFF
+        bytes_msb_to_lsb = [
+            (value >> 24) & 0xFF,
+            (value >> 16) & 0xFF,
+            (value >> 8) & 0xFF,
+            value & 0xFF,
+        ]
+        self.poutput(f"Register {args.address}: 0x{value:08X} ({value})")
+        headers = ["Format", "31..24", "23..16", "15..8", "7..0"]
+        rows = [
+            ["Binary", *(f"{byte:08b}" for byte in bytes_msb_to_lsb)],
+            ["Hex", *(f"0x{byte:02X}" for byte in bytes_msb_to_lsb)],
+            ["Decimal", *bytes_msb_to_lsb]
+        ]
+
+        self.poutput(_format_table(headers, rows))
 
     @cmd2.with_category("Utility")
     @cmd2.with_argparser(CONNECT_PARSER)
