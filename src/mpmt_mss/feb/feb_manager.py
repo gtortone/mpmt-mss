@@ -304,6 +304,13 @@ class FEBManager:
         self.modbus.write_coil(address=1, value=False, slave=0, no_response_expected=True)
 
     @rpc_method
+    def setPMTVoltageSetAll(self, value: int):
+        """Set threshold of all channels."""
+        self._validateRange(value, 0, 1450, "voltage")
+        self.modbus.write_register(address=0x26, value=value, slave=0, no_response_expected=True)
+        time.sleep(0.05) # critical since there is no response
+
+    @rpc_method
     def setPMTThresholdAll(self, value: float):
         """Set threshold of all channels."""
         self._validateRange(value, 0, 2500, "threshold")
@@ -573,7 +580,7 @@ class FEBManager:
         self._validateRange(value, 0, 0xFFFF, "value")
         value = (value << 16) | value
         for add in range(46, 56):
-            self.fpga.writeRegister(register, value)
+            self.fpga.writeRegister(add, value)
 
     @rpc_method
     def getRateThreshold(self) -> dict[str, int]:
