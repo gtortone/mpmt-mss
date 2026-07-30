@@ -1,0 +1,14 @@
+[Unit]
+Description=mPMT MSS Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/mpmt-mss
+ExecStart=/usr/local/bin/uv --directory /opt/mpmt-mss run mpmt-mss
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
