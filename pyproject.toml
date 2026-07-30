@@ -5,6 +5,7 @@ description = "mPMT Slow Control JSON-RPC service"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "cmd2>=4.1.2",
     "fastapi>=0.137.1",
     "pydantic>=2.13.4",
     "pymodbus==3.9.2",

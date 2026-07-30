@@ -24,7 +24,7 @@ class FEBChannel:
 
     @property
     def type(self):
-        return (None if self._device is None else self._device.DEVICE_TYPE)
+        return None if self._device is None else self._device.DEVICE_TYPE
 
     def is_configured(self) -> bool:
         return self._device is not None

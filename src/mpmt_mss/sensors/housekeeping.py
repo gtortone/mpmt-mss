@@ -6,6 +6,7 @@ from smbus2 import SMBus
 from mpmt_mss.sensors.tla2024 import TLA2024
 from mpmt_mss.sensors.bme280 import BME280
 from mpmt_mss.sensors.lsm303 import LSM303Accel, LSM303Magnet
+from mpmt_mss.sensors.bm1422 import BM1422
 
 from mpmt_mss.rpc import rpc_service, rpc_method
 
@@ -37,17 +38,19 @@ class MetricOperation:
 DEVICE_MAP = {
     0x48: TLA2024,
     0x76: BME280,
+    0x77: BME280,
     0x19: LSM303Accel,
     0x1E: LSM303Magnet,
-    #0x88: BME280,       # test
+    0x0E: BM1422
 }
 
 ALIAS_MAP = {
     0x48: "tla2024",
     0x76: "bme280-in",
+    0x77: "BME280-ext",
     0x19: "lsm303-acc",
     0x1E: "lsm303-mag",
-    #0x88: "bme280-ext", 
+    0x0E: "bm1422",
 }
 
 METRIC_MAP = {
@@ -62,6 +65,11 @@ METRIC_MAP = {
         MetricInfo(label="P", unit="hPa", value=0, multiplier=1, divider=1, width=7),
         MetricInfo(label="H", unit="%Rh", value=0, multiplier=1, divider=1, width=6) 
     ],
+    0x77: [
+        MetricInfo(label="T", unit="°C", value=0, multiplier=1, divider=1, width=6),
+        MetricInfo(label="P", unit="hPa", value=0, multiplier=1, divider=1, width=7),
+        MetricInfo(label="H", unit="%Rh", value=0, multiplier=1, divider=1, width=6)
+    ],
     0x19: [
         MetricInfo(label="X", unit="g", value=0, multiplier=1, divider=1, width=7), 
         MetricInfo(label="Y", unit="g", value=0, multiplier=1, divider=1, width=7),
@@ -71,6 +79,11 @@ METRIC_MAP = {
         MetricInfo(label="X", unit="µT", value=0, multiplier=1, divider=1, width=6), 
         MetricInfo(label="Y", unit="µT", value=0, multiplier=1, divider=1, width=6),
         MetricInfo(label="Z", unit="µT", value=0, multiplier=1, divider=1, width=6) 
+    ],
+    0x0E: [
+        MetricInfo(label="X", unit="µT", value=0, multiplier=1, divider=1, width=6),
+        MetricInfo(label="Y", unit="µT", value=0, multiplier=1, divider=1, width=6),
+        MetricInfo(label="Z", unit="µT", value=0, multiplier=1, divider=1, width=6)
     ],
 }
 
@@ -90,7 +103,6 @@ class HouseKeeping:
         self.sensors = []
         self.readings = {}
         self.discovery()
-        #print(self.sensors)
 
     def discovery(self):
         bus = SMBus(I2C_BUS)
