@@ -90,7 +90,7 @@ METRIC_MAP = {
 OPERATION_MAP = {
     0x48: [
         MetricOperation(label="PpoeA", unit="W", value=0, index1=0, index2=1, op=lambda a,b: a * b, width=5),
-        MetricOperation(label="PpoeB", unit="W", value=0, index1=2, index2=3, op=lambda a,b: a * b, width=5),
+        MetricOperation(label="PpoeB", unit="W", value=0, index1=0, index2=3, op=lambda a,b: a * b, width=5),
     ],
 }
 
