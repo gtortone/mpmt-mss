@@ -751,8 +751,8 @@ class MSSShell(cmd2.Cmd):
             self.perror(f"Transport error: {exc}")
             return
         self.poutput(f"PLL: {'locked' if values['pllLocked'] else 'free running'} and {'unstable' if values['clockUnstable'] else 'stable'}")
-        self.poutput(f"Sources: {'Quartz' if values['configuredSource'] else 'Cable'} (set to {'Quartz' if values['activeSource'] else 'Cable'})"
-                     f" - cable {values['configuredCable']} (set to {values['activeCable']})")
+        self.poutput(f"Sources: {'Quartz' if values['activeSource'] else 'Cable'} (set to {'Quartz' if values['configuredSource'] else 'Cable'})"
+                     f" - cable {values['activeCable']} (set to {values['configuredCable']})")
         self.poutput(f"Cable 1: {'OK' if values['cable1']['ok'] else 'not OK'}, {'Lost' if values['cable1']['lost'] else 'not Lost'}, {'Found' if values['cable1']['found'] else 'not Found'}")
         self.poutput(f"Cable 2: {'OK' if values['cable2']['ok'] else 'not OK'}, {'Lost' if values['cable2']['lost'] else 'not Lost'}, {'Found' if values['cable2']['found'] else 'not Found'}")
 
