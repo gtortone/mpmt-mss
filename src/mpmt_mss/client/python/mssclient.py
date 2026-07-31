@@ -156,6 +156,7 @@ FEBMGR_METHODS: list[tuple[str, list[ParamSpec], type]] = [
     ("getPMTVoltage",           [("channel", int, True)],                               float),
     ("getPMTVoltageSet",        [("channel", int, True)],                               float),
     ("setPMTVoltageSet",        [("channel", int, True), ("value", int, True)],         type(None)),
+    ("setPMTVoltageSetAll",     [("value", int, True)],                                 type(None)),
     ("getPMTCurrent",           [("channel", int, True)],                               float),
     ("getPMTTemperature",       [("channel", int, True)],                               float),
     ("getPMTRateRampup",        [("channel", int, True)],                               int),
@@ -227,7 +228,10 @@ FPGA_METHODS: list[tuple[str, ParamSpecDef, type]] = [
     ("getHousekeeping",             [],                                                                    dict),
     ("getFifoStatus",               [],                                                                    dict),
     ("getFirmwareInfo",             [],                                                                    dict[str, str]),
-    ("setDefaults",                 [],                                                                    type(None))
+    ("setDefaults",                 [],                                                                    type(None)),
+
+    ("startAcquisition",            [("host", str, True)],                                                 str),
+    ("stopAcquisition",             [],                                                                    str)
 ]
 
 SENSORS_METHODS: list[tuple[str, list[ParamSpec], type]] = [

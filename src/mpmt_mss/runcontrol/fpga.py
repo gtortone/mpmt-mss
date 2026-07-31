@@ -3,7 +3,8 @@ import mmap
 import json
 import os
 from mpmt_mss.rpc import rpc_service, rpc_method
-
+import subprocess
+import signal
 
 @rpc_service()
 class FPGA:
@@ -14,6 +15,7 @@ class FPGA:
             self.perror("UIO device not found")
             sys.exit(-1)
         self.regs = mmap.mmap(self.fid.fileno(), 0x10000)
+        self.acqprocess = None
 
     REG_STATUS = 3
     REG_CONTROL = 4
@@ -393,3 +395,33 @@ class FPGA:
             def_reg = json.load(f)
             for add in def_reg.keys():
                 self.writeRegister(int(add), def_reg[add])
+
+    # ------------------------------------------------------------------
+    # Acquistiion Evproducer
+    # ------------------------------------------------------------------
+
+    @rpc_method
+    def startAcquisition(self, host: str) -> str:
+        """Start acquisition"""
+        command = ["/opt/mpmt-readout/build/evproducer", "--disable-rc", "--host", host]
+        try:
+            self.acqprocess = subprocess.Popen(command)
+            return f'Process started with PID: {self.acqprocess.pid}'
+        except FileNotFoundError:
+            return 'Error: executable not found'
+        except Exception as e:
+            return f"Error during start: {e}"
+
+    @rpc_method
+    def stopAcquisition(self) -> str:
+        """Stop acquisition"""
+        pid = self.acqprocess.pid
+        if pid is None:
+            return "PID not found"
+        try:
+            os.kill(pid, signal.SIGTERM)
+            return f"Process with PID {pid} terminated."
+        except ProcessLookupError:
+            return f"No process found with PID {pid}."
+        except Exception as e:
+            return f"Error during stop: {e}"
