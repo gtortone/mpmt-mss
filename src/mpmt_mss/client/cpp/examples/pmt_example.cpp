@@ -20,8 +20,7 @@ int main() {
   print_channels(client.febmgr.getDefinedChannels());
   std::cout << client.febmgr.getStatus(DeviceType::PMT).dump() << std::endl;
   std::cout << client.febmgr.getStatus(DeviceType::LED).dump() << std::endl;
-  client.febmgr.enableChannel(3);
-  client.febmgr.enableChannels({1, 2, 3});
+  client.febmgr.enableChannel({1, 6});
 
   std::cout << client.febmgr.getPMTStatus(kChannelTest).dump() << std::endl;
   std::cout << client.febmgr.getPMTVoltage(kChannelTest) << std::endl;

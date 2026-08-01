@@ -83,12 +83,60 @@ class FebmgrNamespace {
   std::vector<int> getOnlineChannels(std::optional<DeviceType> channel_type = std::nullopt);
   std::vector<int> getOfflineChannels(std::optional<DeviceType> channel_type = std::nullopt);
   nlohmann::json getStatus(std::optional<DeviceType> channel_type = std::nullopt);
-  void enableChannel(int channel);
-  void disableChannel(int channel);
-  void enableChannels(const std::vector<int>& channels);
-  void disableChannels(const std::vector<int>& channels);
+  void enableChannel(const std::vector<int>& channels);
+  void disableChannel(const std::vector<int>& channels);
+  void enableAllChannels();
+  void disableAllChannels();
   void enableChannelsByMask(uint32_t mask);
   void disableChannelsByMask(uint32_t mask);
+
+  // Acquisition enable, register 0
+  void enableAcqChannel(const std::vector<int>& channels);
+  void disableAcqChannel(const std::vector<int>& channels);
+  void enableAcqAll();
+  void disableAcqAll();
+
+  // Channel clear/block, register 5
+  void clearChannel(const std::vector<int>& channels);
+  void freeChannel(const std::vector<int>& channels);
+  void clearAll();
+  void freeAll();
+
+  // Trigger enable, register 58
+  void enableTriggerChannel(const std::vector<int>& channels);
+  void disableTriggerChannel(const std::vector<int>& channels);
+  void enableAllTrigger();
+  void disableAllTrigger();
+
+  // Pulser channel enable, register 59
+  void enablePulserChannel(const std::vector<int>& channels);
+  void disablePulserChannel(const std::vector<int>& channels);
+  void enableAllPulser();
+  void disableAllPulser();
+
+  // Time to peak, registers 28..37
+  void setTimeToPeakChannel(int channel, int value);
+  void setAllTimeToPeak(int value);
+  nlohmann::json getTimeToPeak();
+
+  // Per-channel delay, registers 38..42
+  void setDelayChannel(int channel, int value);
+  void setAllDelay(int value);
+
+  // Ratemeter thresholds, registers 46..55
+  void setRateThresholdChannel(int channel, int value);
+  nlohmann::json getRateThreshold();
+  void setAllRateThreshold(int value);
+
+  // Ratemeters
+  int64_t getRateChannel(int channel);
+  nlohmann::json getRateAll();
+
+  // Global FEB methods
+  void powerPMTOnAll();
+  void powerPMTOffAll();
+  void setPMTThresholdAll(double value);
+  void setPMTModbusAddressForced(int addr);
 
   nlohmann::json getPMTStatus(int channel);
   double getPMTVoltage(int channel);
@@ -149,7 +197,56 @@ class FpgaNamespace {
   explicit FpgaNamespace(BaseRpcClient& client) : client_(client) {}
 
   int64_t readRegister(int64_t address);
-  int64_t writeRegister(int64_t address, int64_t value);
+  void writeRegister(int64_t address, int64_t value);
+
+  // Pulser configuration, registers 7 and 60
+  void setPulserFrequency(int frequencyHz);
+  nlohmann::json getPulserFrequency();
+  void setPulserSubhits(int subhits);
+  int getPulserSubhits();
+
+  // Clock configuration and status, registers 3 and 4
+  void setClockSource(const std::string& source);
+  void setClockCable(int cable);
+  nlohmann::json getClockStatus();
+  nlohmann::json getTr32Status();
+
+  // Tr32 and TagT
+  void enableTr32Channel();
+  void disableTr32Channel();
+
+  // ADC calibration
+  void requestAdcCalibration();
+
+  // SPI clock
+  void setSpiClock(int selection);
+  double getSpiClock();
+
+  // FIFO reset
+  std::string setFifoReset(bool reset);
+
+  // Data-shifter timeout, REG_CONTROL bits 0..8
+  void setDataShifterTimeout(int ticks);
+  int getDataShifterTimeout();
+
+  // External trigger window, register 44
+  void setTriggerWindow(int64_t ticks);
+  int64_t getTriggerWindow();
+
+  // Monitoring methods
+  nlohmann::json getDeadtime();
+  nlohmann::json getHousekeeping();
+  nlohmann::json getFifoStatus();
+
+  // Firmware/bitstream information
+  nlohmann::json getFirmwareInfo();
+
+  // Default
+  void setDefaults();
+
+  // Acquisition evproducer
+  std::string startAcquisition(const std::string& host);
+  std::string stopAcquisition();
 
  private:
   BaseRpcClient& client_;

@@ -150,20 +150,18 @@ json FebmgrNamespace::getStatus(std::optional<DeviceType> channel_type) {
   return client_.call("febmgr.getStatus", OptionalDeviceTypeParams(channel_type));
 }
 
-void FebmgrNamespace::enableChannel(int channel) {
-  client_.call("febmgr.enableChannel", json::array({channel}));
+void FebmgrNamespace::enableChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.enableChannel", json::array({channels}));
 }
 
-void FebmgrNamespace::disableChannel(int channel) {
-  client_.call("febmgr.disableChannel", json::array({channel}));
+void FebmgrNamespace::disableChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.disableChannel", json::array({channels}));
 }
 
-void FebmgrNamespace::enableChannels(const std::vector<int>& channels) {
-  client_.call("febmgr.enableChannels", json::array({channels}));
-}
+void FebmgrNamespace::enableAllChannels() { client_.call("febmgr.enableAllChannels", json::array()); }
 
-void FebmgrNamespace::disableChannels(const std::vector<int>& channels) {
-  client_.call("febmgr.disableChannels", json::array({channels}));
+void FebmgrNamespace::disableAllChannels() {
+  client_.call("febmgr.disableAllChannels", json::array());
 }
 
 void FebmgrNamespace::enableChannelsByMask(uint32_t mask) {
@@ -172,6 +170,140 @@ void FebmgrNamespace::enableChannelsByMask(uint32_t mask) {
 
 void FebmgrNamespace::disableChannelsByMask(uint32_t mask) {
   client_.call("febmgr.disableChannelsByMask", json::array({mask}));
+}
+
+// ------------------------------------------------------------------
+// Acquisition enable, register 0
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::enableAcqChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.enableAcqChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::disableAcqChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.disableAcqChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::enableAcqAll() { client_.call("febmgr.enableAcqAll", json::array()); }
+
+void FebmgrNamespace::disableAcqAll() { client_.call("febmgr.disableAcqAll", json::array()); }
+
+// ------------------------------------------------------------------
+// Channel clear/block, register 5
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::clearChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.clearChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::freeChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.freeChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::clearAll() { client_.call("febmgr.clearAll", json::array()); }
+
+void FebmgrNamespace::freeAll() { client_.call("febmgr.freeAll", json::array()); }
+
+// ------------------------------------------------------------------
+// Trigger enable, register 58
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::enableTriggerChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.enableTriggerChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::disableTriggerChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.disableTriggerChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::enableAllTrigger() { client_.call("febmgr.enableAllTrigger", json::array()); }
+
+void FebmgrNamespace::disableAllTrigger() {
+  client_.call("febmgr.disableAllTrigger", json::array());
+}
+
+// ------------------------------------------------------------------
+// Pulser channel enable, register 59
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::enablePulserChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.enablePulserChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::disablePulserChannel(const std::vector<int>& channels) {
+  client_.call("febmgr.disablePulserChannel", json::array({channels}));
+}
+
+void FebmgrNamespace::enableAllPulser() { client_.call("febmgr.enableAllPulser", json::array()); }
+
+void FebmgrNamespace::disableAllPulser() { client_.call("febmgr.disableAllPulser", json::array()); }
+
+// ------------------------------------------------------------------
+// Time to peak, registers 28..37
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::setTimeToPeakChannel(int channel, int value) {
+  client_.call("febmgr.setTimeToPeakChannel", json::array({channel, value}));
+}
+
+void FebmgrNamespace::setAllTimeToPeak(int value) {
+  client_.call("febmgr.setAllTimeToPeak", json::array({value}));
+}
+
+json FebmgrNamespace::getTimeToPeak() { return client_.call("febmgr.getTimeToPeak", json::array()); }
+
+// ------------------------------------------------------------------
+// Per-channel delay, registers 38..42
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::setDelayChannel(int channel, int value) {
+  client_.call("febmgr.setDelayChannel", json::array({channel, value}));
+}
+
+void FebmgrNamespace::setAllDelay(int value) {
+  client_.call("febmgr.setAllDelay", json::array({value}));
+}
+
+// ------------------------------------------------------------------
+// Ratemeter thresholds, registers 46..55
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::setRateThresholdChannel(int channel, int value) {
+  client_.call("febmgr.setRateThresholdChannel", json::array({channel, value}));
+}
+
+json FebmgrNamespace::getRateThreshold() {
+  return client_.call("febmgr.getRateThreshold", json::array());
+}
+
+void FebmgrNamespace::setAllRateThreshold(int value) {
+  client_.call("febmgr.setAllRateThreshold", json::array({value}));
+}
+
+// ------------------------------------------------------------------
+// Ratemeters
+// ------------------------------------------------------------------
+
+int64_t FebmgrNamespace::getRateChannel(int channel) {
+  return client_.call("febmgr.getRateChannel", json::array({channel}));
+}
+
+json FebmgrNamespace::getRateAll() { return client_.call("febmgr.getRateAll", json::array()); }
+
+// ------------------------------------------------------------------
+// Global FEB methods
+// ------------------------------------------------------------------
+
+void FebmgrNamespace::powerPMTOnAll() { client_.call("febmgr.powerPMTOnAll", json::array()); }
+
+void FebmgrNamespace::powerPMTOffAll() { client_.call("febmgr.powerPMTOffAll", json::array()); }
+
+void FebmgrNamespace::setPMTThresholdAll(double value) {
+  client_.call("febmgr.setPMTThresholdAll", json::array({value}));
+}
+
+void FebmgrNamespace::setPMTModbusAddressForced(int addr) {
+  client_.call("febmgr.setPMTModbusAddressForced", json::array({addr}));
 }
 
 json FebmgrNamespace::getPMTStatus(int channel) {
@@ -373,8 +505,136 @@ int64_t FpgaNamespace::readRegister(int64_t address) {
   return client_.call("fpga.readRegister", json::array({address}));
 }
 
-int64_t FpgaNamespace::writeRegister(int64_t address, int64_t value) {
-  return client_.call("fpga.writeRegister", json::array({address, value}));
+void FpgaNamespace::writeRegister(int64_t address, int64_t value) {
+  client_.call("fpga.writeRegister", json::array({address, value}));
+}
+
+// ------------------------------------------------------------------
+// Pulser configuration, registers 7 and 60
+// ------------------------------------------------------------------
+
+void FpgaNamespace::setPulserFrequency(int frequencyHz) {
+  client_.call("fpga.setPulserFrequency", json::array({frequencyHz}));
+}
+
+json FpgaNamespace::getPulserFrequency() {
+  return client_.call("fpga.getPulserFrequency", json::array());
+}
+
+void FpgaNamespace::setPulserSubhits(int subhits) {
+  client_.call("fpga.setPulserSubhits", json::array({subhits}));
+}
+
+int FpgaNamespace::getPulserSubhits() {
+  return client_.call("fpga.getPulserSubhits", json::array());
+}
+
+// ------------------------------------------------------------------
+// Clock configuration and status, registers 3 and 4
+// ------------------------------------------------------------------
+
+void FpgaNamespace::setClockSource(const std::string& source) {
+  client_.call("fpga.setClockSource", json::array({source}));
+}
+
+void FpgaNamespace::setClockCable(int cable) {
+  client_.call("fpga.setClockCable", json::array({cable}));
+}
+
+json FpgaNamespace::getClockStatus() { return client_.call("fpga.getClockStatus", json::array()); }
+
+json FpgaNamespace::getTr32Status() { return client_.call("fpga.getTr32Status", json::array()); }
+
+// ------------------------------------------------------------------
+// Tr32 and TagT
+// ------------------------------------------------------------------
+
+void FpgaNamespace::enableTr32Channel() { client_.call("fpga.enableTr32Channel", json::array()); }
+
+void FpgaNamespace::disableTr32Channel() { client_.call("fpga.disableTr32Channel", json::array()); }
+
+// ------------------------------------------------------------------
+// ADC calibration
+// ------------------------------------------------------------------
+
+void FpgaNamespace::requestAdcCalibration() {
+  client_.call("fpga.requestAdcCalibration", json::array());
+}
+
+// ------------------------------------------------------------------
+// SPI clock
+// ------------------------------------------------------------------
+
+void FpgaNamespace::setSpiClock(int selection) {
+  client_.call("fpga.setSpiClock", json::array({selection}));
+}
+
+double FpgaNamespace::getSpiClock() { return client_.call("fpga.getSpiClock", json::array()); }
+
+// ------------------------------------------------------------------
+// FIFO reset
+// ------------------------------------------------------------------
+
+std::string FpgaNamespace::setFifoReset(bool reset) {
+  return client_.call("fpga.setFifoReset", json::array({reset}));
+}
+
+// ------------------------------------------------------------------
+// Data-shifter timeout, REG_CONTROL bits 0..8
+// ------------------------------------------------------------------
+
+void FpgaNamespace::setDataShifterTimeout(int ticks) {
+  client_.call("fpga.setDataShifterTimeout", json::array({ticks}));
+}
+
+int FpgaNamespace::getDataShifterTimeout() {
+  return client_.call("fpga.getDataShifterTimeout", json::array());
+}
+
+// ------------------------------------------------------------------
+// External trigger window, register 44
+// ------------------------------------------------------------------
+
+void FpgaNamespace::setTriggerWindow(int64_t ticks) {
+  client_.call("fpga.setTriggerWindow", json::array({ticks}));
+}
+
+int64_t FpgaNamespace::getTriggerWindow() {
+  return client_.call("fpga.getTriggerWindow", json::array());
+}
+
+// ------------------------------------------------------------------
+// Monitoring methods
+// ------------------------------------------------------------------
+
+json FpgaNamespace::getDeadtime() { return client_.call("fpga.getDeadtime", json::array()); }
+
+json FpgaNamespace::getHousekeeping() { return client_.call("fpga.getHousekeeping", json::array()); }
+
+json FpgaNamespace::getFifoStatus() { return client_.call("fpga.getFifoStatus", json::array()); }
+
+// ------------------------------------------------------------------
+// Firmware/bitstream information
+// ------------------------------------------------------------------
+
+json FpgaNamespace::getFirmwareInfo() { return client_.call("fpga.getFirmwareInfo", json::array()); }
+
+// ------------------------------------------------------------------
+// Default
+// ------------------------------------------------------------------
+
+void FpgaNamespace::setDefaults() { client_.call("fpga.setDefaults", json::array()); }
+
+// ------------------------------------------------------------------
+// Acquisition evproducer
+// ------------------------------------------------------------------
+
+std::string FpgaNamespace::startAcquisition(const std::string& host) {
+  return client_.call("fpga.startAcquisition", json::array({host}));
+}
+
+std::string FpgaNamespace::stopAcquisition() {
+  return client_.call("fpga.stopAcquisition", json::array());
 }
 
 // ---------------------------------------------------------------------------
