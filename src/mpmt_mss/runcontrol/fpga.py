@@ -401,9 +401,10 @@ class FPGA:
     # ------------------------------------------------------------------
 
     @rpc_method
-    def startAcquisition(self, host: str) -> str:
+    def startAcquisition(self, host: str, port: int = 5555) -> str:
         """Start acquisition"""
-        command = ["/opt/mpmt-readout/build/evproducer", "--disable-rc", "--host", host]
+        command = ["/opt/mpmt-readout/build/evproducer", "--disable-rc",
+                   "--host", host, "--port", str(port)]
         try:
             self.acqprocess = subprocess.Popen(command)
             return f'Process started with PID: {self.acqprocess.pid}'

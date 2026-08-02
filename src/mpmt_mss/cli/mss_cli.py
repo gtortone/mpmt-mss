@@ -349,6 +349,18 @@ PMT_INFO_PARSER = cmd2.Cmd2ArgumentParser(
                  "for every online PMT channel."
 )
 
+CALIBRATE_PMT_PARSER = cmd2.Cmd2ArgumentParser(
+    description="Calibrate HV slope/offset for every online PMT channel: "
+                 "ramps each through 16 setpoints (25V..1400V), fits measured "
+                 "vs expected voltage by least squares, and writes the "
+                 "resulting slope/offset. Takes several minutes per channel, "
+                 "channels are done one at a time (the modbus bus is shared "
+                 "and serialized, so there's no benefit to interleaving them)."
+)
+CALIBRATE_PMT_PARSER.add_argument(
+    "-y", "--yes", action="store_true", help="skip the confirmation prompt"
+)
+
 DEFAULT_PARSER = cmd2.Cmd2ArgumentParser(
     description="Set all the FPGA register to their default values."
 )
@@ -358,6 +370,24 @@ DEFAULT_PARSER.add_argument(
 
 FPGA_ADDRESS_PARSER = cmd2.Cmd2ArgumentParser()
 FPGA_ADDRESS_PARSER.add_argument('address', type=int, help='FPGA register address')
+
+# PMT HV calibration (do_calibrate_pmt), ported from mpmt-board-cli's
+# HvShell.do_calibration (highvoltage/hv.py). Expected setpoints and sampling
+# parameters are unchanged from the original; the "parked/idle" voltage is
+# 25V here, not the original's 10V - mss's setPMTVoltageSet now rejects
+# anything below 25 (DeviceChannel.validate_range(25, 1500) in pmtchannel.py),
+# so 10V is no longer an accepted value.
+_CALIB_VEXPECT = [25, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400]
+_CALIB_IDLE_VOLTAGE = 25
+_CALIB_RAMP_RATE = 25          # V/s - setPMTRateRampup/down's own maximum
+_CALIB_SETTLE_SEC = 2          # extra settle time once status reports UP, before sampling
+_CALIB_SAMPLES = 10
+_CALIB_SAMPLE_INTERVAL = 0.5
+_CALIB_STATUS_TIMEOUT_SEC = 30   # not in the original CLI: that one ran a single
+_CALIB_DISCHARGE_TIMEOUT_SEC = 60  # supervised channel at a time with a human
+                                    # watching; unattended over N channels, a
+                                    # stuck/faulted channel shouldn't hang the batch
+
 
 # febmgr methods that read or change which channels are online: after they
 # run it's worth re-displaying the refreshed online status.
@@ -707,6 +737,148 @@ class MSSShell(cmd2.Cmd):
 
         headers, table_rows = _dicts_to_table(rows)
         self.poutput(_format_table(headers, table_rows))
+
+    @cmd2.with_category("RPC commands")
+    @cmd2.with_argparser(CALIBRATE_PMT_PARSER)
+    def do_calibrate_pmt(self, args: argparse.Namespace):
+        """Calibrate HV slope/offset for every online PMT channel (see the
+        command description for details). One confirmation upfront covers
+        the whole batch - no further prompts once it starts.
+        """
+        try:
+            channels = self.client.febmgr.getOnlineChannels(channel_type=mssclient.DeviceType.PMT)
+        except mssclient.JsonRpcError as exc:
+            self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
+            return
+        except mssclient.JsonRpcTransportError as exc:
+            self.perror(f"Could not read online channels: {exc}")
+            return
+
+        if not channels:
+            self.poutput("No online PMT channels.")
+            return
+        channels = sorted(channels)
+
+        if not args.yes and not self._confirm(
+            f"Calibrate {len(channels)} PMT channel(s) ({', '.join(str(c) for c in channels)})? "
+            "This erases the current slope/offset for each and takes several "
+            "minutes per channel"
+        ):
+            self.poutput("Aborted.")
+            return
+
+        results = {}
+        for channel in channels:
+            self.poutput(f"--- calibrating PMT channel {channel} ---")
+            try:
+                results[channel] = self._calibrate_pmt_channel(channel)
+            except (mssclient.JsonRpcError, mssclient.JsonRpcTransportError) as exc:
+                self.perror(f"channel {channel}: aborted after RPC failure: {exc}")
+                results[channel] = None
+            except TimeoutError as exc:
+                self.perror(f"channel {channel}: aborted: {exc}")
+                results[channel] = None
+
+        self.poutput("--- calibration summary ---")
+        rows = [
+            {
+                "channel": channel,
+                "slope": f"{fit[0]:.6f}" if fit else "FAILED",
+                "offset": f"{fit[1]:.3f}" if fit else "FAILED",
+            }
+            for channel, fit in results.items()
+        ]
+        headers, table_rows = _dicts_to_table(rows)
+        self.poutput(_format_table(headers, table_rows))
+
+    def _calibrate_pmt_channel(self, channel: int) -> tuple:
+        """Runs the calibration ramp for one PMT channel and writes the
+        fitted slope/offset. Returns (slope, offset). Raises
+        mssclient.JsonRpcError/JsonRpcTransportError on an RPC failure, or
+        TimeoutError if the channel doesn't reach the expected voltage/status
+        within the timeouts above (hardware fault, tripped channel, ...).
+        """
+        febmgr = self.client.febmgr
+
+        febmgr.writePMTCalibSlope(channel, 1.0)
+        febmgr.writePMTCalibOffset(channel, 0.0)
+
+        febmgr.setPMTRateRampup(channel, _CALIB_RAMP_RATE)
+        febmgr.setPMTRateRampdown(channel, _CALIB_RAMP_RATE)
+
+        self.poutput(f"  parking at {_CALIB_IDLE_VOLTAGE}V, power off")
+        febmgr.setPMTVoltageSet(channel, _CALIB_IDLE_VOLTAGE)
+        febmgr.powerPMTOff(channel)
+        self._wait_until(
+            lambda: febmgr.getPMTVoltage(channel) <= _CALIB_VEXPECT[0],
+            _CALIB_DISCHARGE_TIMEOUT_SEC,
+            f"channel {channel}: voltage didn't discharge below {_CALIB_VEXPECT[0]}V "
+            f"within {_CALIB_DISCHARGE_TIMEOUT_SEC}s",
+        )
+
+        self.poutput("  power on")
+        febmgr.powerPMTOn(channel)
+
+        v_read = []
+        for v_expect in _CALIB_VEXPECT:
+            self.poutput(f"  Vset = {v_expect}V")
+            febmgr.setPMTVoltageSet(channel, v_expect)
+            self._wait_until(
+                lambda: febmgr.getPMTStatus(channel)["string"] == "UP",
+                _CALIB_STATUS_TIMEOUT_SEC,
+                f"channel {channel}: status didn't reach UP at Vset={v_expect}V "
+                f"within {_CALIB_STATUS_TIMEOUT_SEC}s",
+            )
+
+            time.sleep(_CALIB_SETTLE_SEC)
+            samples = []
+            for _ in range(_CALIB_SAMPLES):
+                samples.append(febmgr.getPMTVoltage(channel))
+                time.sleep(_CALIB_SAMPLE_INTERVAL)
+            # trimmed mean: drop the lowest and highest sample, same as the original
+            samples.sort()
+            trimmed = samples[1:-1]
+            v_mean = sum(trimmed) / len(trimmed)
+            self.poutput(f"    samples={samples} mean(trimmed)={v_mean:.2f}")
+            v_read.append(v_mean)
+
+        slope, offset = self._linear_fit(v_read, _CALIB_VEXPECT)
+        self.poutput(f"  fit: slope={slope:.6f}, offset={offset:.3f}")
+
+        febmgr.writePMTCalibSlope(channel, slope)
+        febmgr.writePMTCalibOffset(channel, offset)
+
+        self.poutput(f"  parking at {_CALIB_IDLE_VOLTAGE}V, power off")
+        febmgr.setPMTVoltageSet(channel, _CALIB_IDLE_VOLTAGE)
+        febmgr.powerPMTOff(channel)
+
+        return slope, offset
+
+    @staticmethod
+    def _wait_until(condition, timeout_sec: float, timeout_message: str, poll_interval: float = 1.0):
+        """Polls condition() every poll_interval seconds until it returns
+        True, or raises TimeoutError after timeout_sec.
+        """
+        deadline = time.monotonic() + timeout_sec
+        while not condition():
+            if time.monotonic() >= deadline:
+                raise TimeoutError(timeout_message)
+            time.sleep(poll_interval)
+
+    @staticmethod
+    def _linear_fit(x_values: list, y_values: list) -> tuple:
+        """Ordinary least-squares fit y = slope*x + offset. Hand-rolled
+        instead of numpy (which the original CLI used) - not worth adding
+        the dependency for one regression over 16 points.
+        """
+        n = len(x_values)
+        mean_x = sum(x_values) / n
+        mean_y = sum(y_values) / n
+        numerator = sum((x - mean_x) * (y - mean_y) for x, y in zip(x_values, y_values))
+        denominator = sum((x - mean_x) ** 2 for x in x_values)
+        slope = numerator / denominator
+        offset = mean_y - slope * mean_x
+        return slope, offset
 
     @cmd2.with_category("RPC commands")
     @cmd2.with_argparser(DEFAULT_PARSER)

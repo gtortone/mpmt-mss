@@ -230,7 +230,7 @@ FPGA_METHODS: list[tuple[str, ParamSpecDef, type]] = [
     ("getFirmwareInfo",             [],                                                                    dict[str, str]),
     ("setDefaults",                 [],                                                                    type(None)),
 
-    ("startAcquisition",            [("host", str, True)],                                                 str),
+    ("startAcquisition",            [("host", str, True), ("port", int, False)],                           str),
     ("stopAcquisition",             [],                                                                    str)
 ]
 
