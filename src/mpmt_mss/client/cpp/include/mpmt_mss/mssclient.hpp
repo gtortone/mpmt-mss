@@ -245,7 +245,7 @@ class FpgaNamespace {
   void setDefaults();
 
   // Acquisition evproducer
-  std::string startAcquisition(const std::string& host);
+  std::string startAcquisition(const std::string& host, int port = 5555);
   std::string stopAcquisition();
 
  private:

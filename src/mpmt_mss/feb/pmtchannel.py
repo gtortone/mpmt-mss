@@ -110,7 +110,7 @@ class PMTChannel(DeviceChannel):
         self.modbus.write_register(address=0x24, value=value, slave=self.address)
 
     @DeviceChannel.track_connection
-    @DeviceChannel.validate_range(1, 20)
+    @DeviceChannel.validate_range(1, 60)
     def setPMTLimitVoltage(self, value: int):
         self.modbus.write_register(address=0x27, value=value, slave=self.address)
 
@@ -171,9 +171,29 @@ class PMTChannel(DeviceChannel):
         pmtsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
         l = self.modbus.read_holding_registers(address=0x0E, count=6, slave=self.address).registers
         hvsn = pack(f'>{len(l)}h', *l).decode().rstrip('\x00')
-        l = self.modbus.read_holding_registers(address=0x04, count=2, slave=self.address).registers
-        devid = (l[1] << 16) + l[0]
-        return {"fwver": fwver, "pmtsn": pmtsn, "hvsn": hvsn, "febsn": str(devid)}
+        l = self.modbus.read_holding_registers(address=0x36, count=6, slave=self.address).registers
+        return {"fwver": fwver, "pmtsn": pmtsn, "hvsn": hvsn, "febsn": self.unpackSN(l)}
+
+    @staticmethod
+    def unpackSN(registers: list[int]) -> str:
+        uid = pack("<6H", *registers)
+        lot = (uid[0:3] + uid[4:8]).decode("ascii")
+        wafer = uid[3]
+        unique = int.from_bytes(uid[8:12], "little")
+
+        return f"{lot}{wafer:03d}{unique:08X}"
+
+    def safe_write_registers(self, address, values, slave=None):
+        slave = self.address if slave is None else slave
+        base_addr = address
+
+        for i, val in enumerate(values):
+            addr = base_addr + i
+            try:
+                self.modbus.write_register(address=addr, value=val, slave=slave)
+            except Exception as e:
+                print(f"Exception at reg 0x{addr:02X}: {e}")
+
 
     @DeviceChannel.track_connection
     def setPMTSerialNumber(self, sn: str):
