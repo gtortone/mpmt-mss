@@ -242,6 +242,8 @@ FPGA_METHODS: list[tuple[str, ParamSpecDef, type]] = [
     ("getTr32Counter",              [],                                                                    int),
     ("enableTr32Channel",           [],                                                                    type(None)),
     ("disableTr32Channel",          [],                                                                    type(None)),
+    ("enableTr32Pulser",            [],                                                                    type(None)),
+    ("disableTr32Pulser",           [],                                                                    type(None)),
     ("requestAdcCalibration",       [],                                                                    type(None)),
     ("setSpiClock",                 [("selection", int, True)],                                            type(None)),
     ("getSpiClock",                 [],                                                                    float),
@@ -255,8 +257,10 @@ FPGA_METHODS: list[tuple[str, ParamSpecDef, type]] = [
     ("getFifoStatus",               [],                                                                    dict),
     ("getFirmwareInfo",             [],                                                                    dict[str, str]),
     ("setDefaults",                 [],                                                                    type(None)),
+    ("setCableLen",                 [("length", int, True)],                                               type(None)),
+    ("getCableLen",                 [],                                                                    int),
 
-    ("startAcquisition",            [("host", str, True), ("port", int, False)],                           str),
+    ("startAcquisition",            [("host", str, True), ("port", int, False), ("mPMTID", int, False)],   str),
     ("stopAcquisition",             [],                                                                    str)
 ]
 

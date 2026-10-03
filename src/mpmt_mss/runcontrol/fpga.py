@@ -5,6 +5,7 @@ import os
 from mpmt_mss.rpc import rpc_service, rpc_method
 import subprocess
 import signal
+import math
 
 @rpc_service()
 class FPGA:
@@ -47,6 +48,7 @@ class FPGA:
     CTRL_CLOCK_INTERNAL = 0x00000400
     CTRL_CLOCK_CABLE_2 = 0x00000800
     CTRL_TR32_ENABLE = 0x00004000
+    CTRL_TR32_PULSER = 0x00200000
     CTRL_ADC_CALIBRATION = 0x00010000
     CTRL_SPI_CLOCK_MASK = 0x00180000
 
@@ -253,6 +255,18 @@ class FPGA:
         self._clearRegisterBits(self.REG_CONTROL, self.CTRL_TR32_ENABLE)
 
     # ------------------------------------------------------------------
+    # Tr32 pulser
+    # ------------------------------------------------------------------
+
+    @rpc_method
+    def enableTr32Pulser(self):
+        self._setRegisterBits(self.REG_CONTROL, self.CTRL_TR32_PULSER)
+
+    @rpc_method
+    def disableTr32Pulser(self):
+        self._clearRegisterBits(self.REG_CONTROL, self.CTRL_TR32_PULSER)
+
+    # ------------------------------------------------------------------
     # ADC calibration
     # ------------------------------------------------------------------
 
@@ -416,9 +430,9 @@ class FPGA:
         timeHex = f"{timeValue:08x}"
         versionHex = f"{versionValue:08x}"
 
-        major = versionHex[0]
-        minorText = versionHex[1:3]
-        patchText = versionHex[3:] or "0"
+        major = int(versionHex[:2])
+        minorText = versionHex[2:4]
+        patchText = versionHex[4:] or "0"
         minor = int(minorText, 16)
         patch = int(patchText, 16)
         version = f"v{major}.{minor}.{patch}"
@@ -447,10 +461,10 @@ class FPGA:
     # ------------------------------------------------------------------
 
     @rpc_method
-    def startAcquisition(self, host: str, port: int = 5555) -> str:
+    def startAcquisition(self, host: str, port: int = 5555, mPMTID: int = 1) -> str:
         """Start acquisition"""
         command = ["/opt/mpmt-readout/build/evproducer", "--disable-rc",
-                   "--host", host, "--port", str(port)]
+                   "--host", host, "--port", str(port), "--id", str(mPMTID)]
         try:
             self.acqprocess = subprocess.Popen(command)
             return f'Process started with PID: {self.acqprocess.pid}'
@@ -472,3 +486,23 @@ class FPGA:
             return f"No process found with PID {pid}."
         except Exception as e:
             return f"Error during stop: {e}"
+
+    # ------------------------------------------------------------------
+    # Cable length compensation
+    # ------------------------------------------------------------------
+
+    @rpc_method
+    def setCableLen(self, length: int):
+        """Set compensation for cables length"""
+        self._validateRange(length, 0, 50, "cable length")
+        ns = length * 5                     # speed of signals in cables is 5 ns per meter
+        comp = math.floor(ns / 4)           # compensation is changed in steps of 4 ns
+        self.writeRegister(6, comp)
+
+    @rpc_method
+    def getCableLen(self) -> int:
+        """Set compensation for cables length"""
+        comp = self.readRegister(6)
+        ns = comp * 4                       # compensation is changed in steps of 4 ns
+        length = math.floor(ns / 5)         # speed of signals in cables is 5 ns per meter
+        return length

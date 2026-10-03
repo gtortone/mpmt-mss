@@ -735,8 +735,8 @@ void FpgaNamespace::setDefaults() { client_.call("fpga.setDefaults", json::array
 // Acquisition evproducer
 // ------------------------------------------------------------------
 
-std::string FpgaNamespace::startAcquisition(const std::string& host, int port) {
-  return client_.call("fpga.startAcquisition", json::array({host, port}));
+std::string FpgaNamespace::startAcquisition(const std::string& host, int port, int mPMTID) {
+  return client_.call("fpga.startAcquisition", json::array({host, port, mPMTID}));
 }
 
 std::string FpgaNamespace::stopAcquisition() {

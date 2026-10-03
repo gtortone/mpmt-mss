@@ -319,7 +319,7 @@ class FEBManager:
             "Block": "blocked" if self.fpga.readRegister(5) & self._channelMask(channel) else "free",
             "Rate": self.fpga.readRegister(8 + channel - 1),
             "Rate threshold": self.getRateThreshold()[str(channel)],
-            "Time to peak": self.getTimeToPeak()[str(channel)]*3.7,
+            "Time to peak": self.getTimeToPeak()[str(channel)],
         }
         return status
 
