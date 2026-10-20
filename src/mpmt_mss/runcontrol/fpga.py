@@ -39,8 +39,7 @@ class FPGA:
     REG_FW_VERSION = 104
     REG_TR32_ERROR_COUNTERS = 105
     REG_TD_ERROR_COUNTERS = 106
-    REG_TR32_COUNTER_LSB = 107
-    REG_TR32_COUNTER_MSB = 108
+    REG_BUFFER_SIZE = 107
 
     # REG_CONTROL bit fields
     CTRL_TIMEOUT_MASK = 0x000001FF
@@ -238,9 +237,12 @@ class FPGA:
 
     @rpc_method
     def getTr32Counter(self) -> int:
-        lsb = self.readRegister(self.REG_TR32_COUNTER_LSB)
-        msb = self.readRegister(self.REG_TR32_COUNTER_MSB)
-        return (msb << 32) | lsb
+        return self.readRegister(self.REG_TR32_COUNT)
+
+    @rpc_method
+    def resetTr32counters(self) -> None:
+        self.writeRegister(self.REG_CONTROL, self.readRegister(self.REG_CONTROL) | 0x400000)
+        self.writeRegister(self.REG_CONTROL, self.readRegister(self.REG_CONTROL) & 0XFFBFFFFF)
 
     # ------------------------------------------------------------------
     # Tr32 and TagT
@@ -292,18 +294,17 @@ class FPGA:
     # ------------------------------------------------------------------
 
     @rpc_method
-    def setSpiClock(self, selection: int) -> str:
+    def setSpiClock(self, selection: int) -> str | None:
         """
         Set SPI clock selection:
         0=10.42 MHz, 1=12.5 MHz, 2=15.625 MHz, 3=20.83 MHz.
         """
         self._validateRange(selection, 0, 3, "selection")
         field = selection << 19
-
         self._updateRegisterField(self.REG_CONTROL, self.CTRL_SPI_CLOCK_MASK, field)
 
     @rpc_method
-    def getSpiClock(self) -> float:
+    def getSpiClock(self) -> str:
         control = self.readRegister(self.REG_CONTROL)
         selection = (control & self.CTRL_SPI_CLOCK_MASK) >> 19
         frequenciesMHz = {
@@ -312,7 +313,7 @@ class FPGA:
             2: 15.625,
             3: 20.83,
         }
-        return frequenciesMHz[selection]
+        return f"{frequenciesMHz[selection]}MHz"
 
     # ------------------------------------------------------------------
     # FIFO reset

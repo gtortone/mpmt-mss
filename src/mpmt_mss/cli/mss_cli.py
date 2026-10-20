@@ -48,6 +48,11 @@ import time
 import typing
 from enum import Enum
 import re
+from rich import box
+from rich.table import Table
+from rich.text import Text
+
+from mpmt_mss.runcontrol.fpga import FPGA
 
 try:
     import cmd2
@@ -464,9 +469,18 @@ class MSSShell(cmd2.Cmd):
         self.timeout = timeout
         self.client = mssclient.MSSClient(url, timeout=timeout)
         self._update_prompt()
+        self.NA = Text("-", style="dim")
 
         # commands/namespaces that aren't part of cmd2's base set
         self.default_category = "RPC commands"
+
+    @staticmethod
+    def _cnt(v):
+        return Text(str(v), style="green" if v == 0 else "red")
+
+    @staticmethod
+    def _flag(cond, good, bad):
+        return Text(good, style="green") if cond else Text(bad, style="red")
 
     def preloop(self):
         self.poutput(
@@ -474,6 +488,15 @@ class MSSShell(cmd2.Cmd):
             "'methods' for the RPC methods, 'online' for active channels.\n"
         )
         self._show_online()
+
+    def _table(self, headers, rows) -> None:
+        t = Table(box=box.SIMPLE_HEAD, header_style="cyan", pad_edge=False)
+        t.add_column(headers[0], justify="left")
+        for h in headers[1:]:
+            t.add_column(h, justify="center")
+        for r in rows:
+            t.add_row(*r)
+        self.poutput(t)
 
     def _update_prompt(self):
         self.prompt = f"mss ({self.url})> "
@@ -1046,15 +1069,21 @@ class MSSShell(cmd2.Cmd):
     def do_tr(self, _args):
         """Print Tr32 and TagT status"""
         try:
-            values = self.client.fpga.getTr32Status()
+            values = self.client.fpga.getErrorCounters()
         except mssclient.JsonRpcError as exc:
             self.perror(f"RPC error [{exc.code}] {exc.message} {exc.data or ''}".strip())
             return
         except mssclient.JsonRpcTransportError as exc:
             self.perror(f"Transport error: {exc}")
             return
-        self.poutput(f"Tr32: {'received' if values['received'] else 'not received'}, {'aligned' if values['aligned'] else 'not aligned'} and {'arrived early' if values['arrivedEarly'] else 'in synch'} - counted: {values['count']}")
-        self.poutput(f"TagT: {'received' if values['tagTReceived'] else 'not received'} ({'parity ok' if values['tagTParityOk'] else 'parity not ok'})")
+        self._table(
+            ["", "Not rec", "Not align", "Early", "Par. err"],
+            [
+                ["Tr32", self._cnt(values['tr32']['notReceived']), self._cnt(values['tr32']['notAligned']), self._cnt(values['tr32']['arrivedEarly']), self.NA],
+                ["Td", self._cnt(values['tagT']['notReceived']), self.NA, self.NA, self._cnt(values['tagT']['parityError'])],
+            ],
+        )
+        self.poutput(f"Tr32 counted: {self.client.fpga.getTr32Counter()}")
 
     @cmd2.with_category("RPC commands")
     def do_clock(self, _args):
